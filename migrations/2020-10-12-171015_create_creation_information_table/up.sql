@@ -1,0 +1,8 @@
+CREATE TABLE CreationInformation (
+  ID INTEGER PRIMARY KEY NOT NULL,
+  UUID TEXT NOT NULL,
+  CreatorUserUUID TEXT NOT NULL,
+  CreationTime TEXT NOT NULL,
+  LastUpdatedByUserUUID TEXT NOT NULL,
+  LastUpdatedTime TEXT NOT NULL
+)
