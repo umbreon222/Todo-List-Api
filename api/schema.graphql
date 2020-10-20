@@ -1,0 +1,75 @@
+input CreateListInput {
+  title: String!
+  description: String
+  colorHex: String
+  taskUuids: String
+  parentListUuid: String
+  subListUuids: String
+  sharedWithUserUuids: String
+}
+
+input CreateCreationInformationInput {
+  creatorUserUuid: String!
+}
+
+input CreateTaskInput {
+  content: String!
+  priority: Int
+  tagUuids: String
+  isComplete: Boolean
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): User!
+  createList(
+    creationInformationInput: CreateCreationInformationInput!
+    listInput: CreateListInput!
+  ): List!
+  addTaskToList(listUuid: String!, listItemUuid: String!): List!
+  createTask(
+    creationInformationInput: CreateCreationInformationInput!
+    taskInput: CreateTaskInput!
+  ): Task!
+}
+
+type Task {
+  ID: Int!
+  UUID: String!
+  Content: String!
+  Priority: Int!
+  TagUUIDs: String
+  IsComplete: Boolean!
+  CreationInformationUUID: String!
+}
+
+type Query {
+  allUsers: [User!]!
+  allLists: [List!]!
+}
+
+input CreateUserInput {
+  username: String!
+  password: String!
+  nickname: String!
+}
+
+type User {
+  ID: Int!
+  UUID: String!
+  Username: String!
+  PasswordHash: String!
+  Nickname: String!
+}
+
+type List {
+  ID: Int!
+  UUID: String!
+  Title: String!
+  Description: String
+  ColorHex: String
+  TaskUUIDs: String
+  ParentListUUID: String
+  SubListUUIDs: String
+  SharedWithUserUUIDs: String
+  CreationInformationUUID: String!
+}
