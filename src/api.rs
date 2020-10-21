@@ -5,3 +5,5 @@ pub mod graphql;
 pub mod models;
 pub mod schema;
 pub mod services;
+pub mod errors;
+pub mod validators;
