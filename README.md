@@ -3,7 +3,6 @@ Work in progress GraphQL backend for a todo list type app
 
 ## TODOs
  - Start a trello board
- - Split models and services into separate files somehow
  - Pass connection url to db pool create
  - Start passing around graphql context instead of db reference
  - Add a validation layer
