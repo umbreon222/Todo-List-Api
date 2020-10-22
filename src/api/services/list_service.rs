@@ -3,10 +3,10 @@ use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{graphql_value, FieldError, FieldResult};
 
-use crate::api::services::utilities::graphql_translate;
-use crate::api::services::CreationInformationService;
-use crate::api::schema;
-use crate::api::models;
+use crate::api::constants;
+use crate::api::{schema, models};
+use crate::api::services::{CreationInformationService, UserService, TaskService};
+use crate::api::services::utilities::{graphql_translate, verify_json_uuids_exist_and_parse};
 
 pub struct ListService;
 
@@ -24,6 +24,92 @@ impl ListService {
     ) -> FieldResult<models::List> {
         use schema::Lists::dsl::*;
 
+        // Validate input 
+        match new_list.validate() {
+            Ok(_) => {},
+            Err(validation_error) => {
+                let err_details_key = constants::ERROR_DETAILS_KEY;
+                let err_details = validation_error.to_string();
+                return FieldResult::Err(FieldError::new("Invalid input for new list", graphql_value!({ err_details_key: err_details })));
+            },
+        }
+        // Verify the given task uuids exist
+        match &new_list.task_uuids {
+            Some(json_task_uuids) => {
+                match verify_json_uuids_exist_and_parse(json_task_uuids, &conn, TaskService::task_exists) {
+                    Ok(_) => {},
+                    Err(validation_error) => {
+                        let err_details_key = constants::ERROR_DETAILS_KEY;
+                        let err_details = validation_error.to_string();
+                        return FieldResult::Err(FieldError::new("Task UUID not found", graphql_value!({ err_details_key: err_details })));
+                    },
+                }
+            },
+            None => {},
+        }
+        // Verify the parent list uuid exists
+        match &new_list.parent_list_uuid {
+            Some(list_uuid) => {
+                match ListService::list_exists(&conn, list_uuid.to_string()) {
+                    Ok(list_exists) => {
+                        if !list_exists {
+                            let err_details_key = constants::ERROR_DETAILS_KEY;
+                            let err_details = format!("The uuid '{}' does not exist", list_uuid.to_string());
+                            return FieldResult::Err(FieldError::new("Parent list UUID not found", graphql_value!({ err_details_key: err_details })));
+                        }
+                    },
+                    Err(err) => return Err(err),
+                }
+            },
+            None => {},
+        }
+        // Verify the sub list uuids exist
+        match &new_list.sub_list_uuids {
+            Some(json_sub_list_uuids) => {
+                match verify_json_uuids_exist_and_parse(json_sub_list_uuids, &conn, ListService::list_exists) {
+                    Ok(_) => {},
+                    Err(validation_error) => {
+                        let err_details_key = constants::ERROR_DETAILS_KEY;
+                        let err_details = validation_error.to_string();
+                        return FieldResult::Err(FieldError::new("Sub-list UUID not found", graphql_value!({ err_details_key: err_details })));
+                    },
+                }
+            },
+            None => {},
+        }
+        // Verify the creator user uuid exists
+        match UserService::user_exists(&conn, new_creation_information.creator_user_uuid.to_string()) {
+            Ok(user_exists) => {
+                if !user_exists {
+                    let err_details_key = constants::ERROR_DETAILS_KEY;
+                    let err_details = format!("The uuid '{}' does not exist", new_creation_information.creator_user_uuid.to_string());
+                    return FieldResult::Err(FieldError::new("Creator UUID not found", graphql_value!({ err_details_key: err_details })));
+                }
+            },
+            Err(err) => return Err(err),
+        }
+        // By default, the list being created will be shared with the creator.
+        let mut updated_shared_with_user_uuids: Vec<String> = vec![new_creation_information.creator_user_uuid.to_string()];
+        // Verify and append any additional users uuids that the creator wants to share with if need be
+        match new_list.shared_with_user_uuids {
+            Some(json_user_uuids) => {
+                let mut user_uuids: Vec<String>;
+                match verify_json_uuids_exist_and_parse(&json_user_uuids, &conn, UserService::user_exists) {
+                    Ok(parsed_user_uuids) => {
+                        user_uuids = parsed_user_uuids;
+                    },
+                    Err(validation_error) => {
+                        let err_details_key = constants::ERROR_DETAILS_KEY;
+                        let err_details = validation_error.to_string();
+                        return FieldResult::Err(FieldError::new("User UUID not found", graphql_value!({ err_details_key: err_details })));
+                    },
+                }
+                updated_shared_with_user_uuids.append(&mut user_uuids);
+            },
+            None => {},
+        }
+        // Convert the modified shared user ids list back to a json string
+        let updated_shared_with_user_uuids_json = serde_json::to_string(&updated_shared_with_user_uuids)?;
         // Use creation information service to create a creation information object in db
         let created_creation_information: models::CreationInformationStruct;
         match CreationInformationService::create_creation_information(conn, new_creation_information) {
@@ -32,25 +118,6 @@ impl ListService {
             },
             Err(err) => return Err(err),
         };
-        // By default, the list being created will be shared with the creator.
-        let mut updated_shared_with_user_uuids: Vec<String> = vec![created_creation_information.creator_user_uuid];
-        // Append any additional users uuids that the creator wants to share with if need be
-        match new_list.shared_with_user_uuids {
-            Some(user_uuids_json) => {
-                match serde_json::from_str(&user_uuids_json) {
-                    Ok(mut user_uuids) => {
-                        updated_shared_with_user_uuids.append(&mut user_uuids);
-                    },
-                    Err(err) => {
-                        let err_string = err.to_string();
-                        return FieldResult::Err(FieldError::new("List not created", graphql_value!({ "internal_error": err_string })))
-                    },
-                }
-            },
-            None => {},
-        }
-        // Convert the modified shared user ids list back to a json string
-        let updated_shared_with_user_uuids_json = serde_json::to_string(&updated_shared_with_user_uuids)?;
         // Create new list row
         let uuid = Uuid::new_v4();
         let new_list = models::NewList {
@@ -137,7 +204,7 @@ impl ListService {
                     },
                     Err(err) => {
                         let err_string = err.to_string();
-                        return FieldResult::Err(FieldError::new("Task not added", graphql_value!({ "internal_error": err_string })))
+                        return FieldResult::Err(FieldError::new("Task not added", graphql_value!({ "internal_error": err_string })));
                     },
                 }
             },
