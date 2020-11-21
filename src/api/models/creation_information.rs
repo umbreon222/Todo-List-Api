@@ -1,6 +1,8 @@
 use juniper::{GraphQLInputObject, GraphQLObject};
 
 use crate::api::schema::*;
+use crate::api::errors::ValidationError;
+use crate::api::validators::*;
 
 #[derive(GraphQLObject)]
 #[derive(Queryable)]
@@ -33,4 +35,13 @@ pub struct NewCreationInformation<'a> {
 #[derive(GraphQLInputObject)]
 pub struct CreateCreationInformationInput {
     pub creator_user_uuid: String,
+}
+
+impl CreateCreationInformationInput {
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        match validate_uuid(&self.creator_user_uuid) {
+            Ok(_) => Ok(()),
+            Err(err) => return Err(err),
+        }
+    }
 }
