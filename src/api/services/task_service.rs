@@ -35,6 +35,7 @@ impl TaskService {
             },
             Err(err) => return FieldResult::Err(err)
         };
+        // Parse create task input
         let new_task: models::Task;
         match create_task_input.create_task(&creation_information.uuid) {
             Ok(task) => {
@@ -44,6 +45,7 @@ impl TaskService {
                 return FieldResult::Err(FieldError::new(TASK_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
             }
         }
+        // Create new task row
         let new_task_row: models::NewTaskRow;
         match new_task.create_new_task_row() {
             Ok(task_row) => {

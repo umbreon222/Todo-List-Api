@@ -38,7 +38,7 @@ impl ListService {
                 return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
             }
         }
-        // Create List
+        // Parse create list input
         let new_list: models::List;
         match create_list_input.create_list(&creation_information.uuid) {
             Ok(list) => {
@@ -107,6 +107,7 @@ impl ListService {
             },
             None => {},
         }
+        // Create new list row
         let new_list_row: models::NewListRow;
         match new_list.create_new_list_row() {
             Ok(res) => {

@@ -18,6 +18,7 @@ impl CreationInformationService {
         conn: &SqliteConnection,
         create_creation_information_input: models::CreateCreationInformationInput
     ) -> FieldResult<models::CreationInformationRow> {
+        // Parse create creation information input
         let new_creation_information: models::CreationInformationStruct;
         match create_creation_information_input.create_creation_information() {
             Ok(res) => {
@@ -27,6 +28,7 @@ impl CreationInformationService {
                 return FieldResult::Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
             }
         }
+        // Create new creation information row
         let new_creation_information_row = new_creation_information.create_new_creation_information_row();
         // Execute insertion
         let inserted = diesel::insert_into(schema::CreationInformation::table)

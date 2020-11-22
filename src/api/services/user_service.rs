@@ -18,7 +18,9 @@ impl UserService {
         conn: &SqliteConnection,
         create_user_input: models::CreateUserInput
     ) -> FieldResult<models::UserRow> {
+        // Parse create user input
         let new_user = create_user_input.create_user();
+        // Create new user row
         let new_user_row = new_user.create_new_user_row();
 
         // Execute insertion
