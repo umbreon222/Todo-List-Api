@@ -1,7 +1,7 @@
 use juniper::GraphQLObject;
 
 #[derive(GraphQLObject)]
-struct Tag {
+struct TagRow {
     #[graphql(name = "ID")]
     pub id: i32,
     #[graphql(name = "UUID")]

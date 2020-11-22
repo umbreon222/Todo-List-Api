@@ -1,82 +1,61 @@
-use uuid::Uuid;
-use crypto::digest::Digest;
-use crypto::sha3::Sha3;
 use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{graphql_value, FieldError, FieldResult};
 
+use crate::api::constants::{ERROR_DETAILS_KEY, USER_NOT_CREATED_ERROR_MESSAGE};
+use crate::api::{models, schema};
+use schema::Users::dsl::*;
 use crate::api::services::utilities::graphql_translate;
-use crate::api::schema;
-use crate::api::models;
-
-const PASSWORD_HASH_SALT: &'static str = "pr3tz3ls&mcd0nalds_fr1es";
 
 pub struct UserService;
 
 impl UserService {
-    pub fn all_users(conn: &SqliteConnection) -> FieldResult<Vec<models::User>> {
-        use schema::Users::dsl::*;
-
-        graphql_translate(Users.load::<models::User>(conn))
+    pub fn all_users(conn: &SqliteConnection) -> FieldResult<Vec<models::UserRow>> {
+        graphql_translate(Users.load::<models::UserRow>(conn))
     }
 
     pub fn create_user(
         conn: &SqliteConnection,
-        new_user: models::CreateUserInput,
-    ) -> FieldResult<models::User> {
-        use schema::Users::dsl::*;
+        create_user_input: models::CreateUserInput
+    ) -> FieldResult<models::UserRow> {
+        let new_user = create_user_input.create_user();
+        let new_user_row = new_user.create_new_user_row();
 
-        // Create new user row
-        let uuid = Uuid::new_v4();
-        // This may need to be done client side to avoid sending the real user's password over the network
-        let mut salted_password = new_user.password.clone();
-        salted_password.push_str(PASSWORD_HASH_SALT);
-        let mut hasher = Sha3::sha3_256();
-        hasher.input_str(&salted_password);
-        let password_hash = hasher.result_str();
-        let new_user = models::NewUser {
-            UUID: &uuid.to_string(),
-            Username: &new_user.username,
-            PasswordHash: &password_hash,
-            Nickname: &new_user.nickname
-        };
         // Execute insertion
         let inserted = diesel::insert_into(schema::Users::table)
-            .values(&new_user)
+            .values(&new_user_row)
             .execute(conn);
+        
         // Return error or newly inserted row via UUID look up
         match inserted {
-            Ok(_size) => graphql_translate(Users.filter(UUID.eq(uuid.to_string())).first::<models::User>(conn)),
+            Ok(_size) => graphql_translate(Users.filter(UUID.eq(new_user.uuid.to_string())).first::<models::UserRow>(conn)),
             Err(err) => {
                 let err_string = err.to_string();
-                FieldResult::Err(FieldError::new("User not created", graphql_value!({ "internal_error": err_string })))
-            },
+                FieldResult::Err(FieldError::new(USER_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+            }
         }
     }
 
     pub fn get_user_by_uuid(
         conn: &SqliteConnection,
-        uuid: String,
-    ) -> FieldResult<Option<models::User>> {
-        use schema::Users::dsl::*;
-
-        match Users.filter(UUID.eq(uuid)).first::<models::User>(conn) {
+        uuid: &String
+    ) -> FieldResult<Option<models::UserRow>> {
+        match Users.filter(UUID.eq(uuid.clone())).first::<models::UserRow>(conn) {
             Ok(user) => Ok(Some(user)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => FieldResult::Ok(None),
-                    _ => FieldResult::Err(FieldError::from(err)),
-            },
+                _ => FieldResult::Err(FieldError::from(err))
+            }
         }
     }
 
     pub fn user_exists(
         conn: &SqliteConnection,
-        uuid: String,
+        uuid: &String
     ) -> FieldResult<bool> {
-        use schema::Users::dsl::*;
         use diesel::select;
         use diesel::dsl::exists;
         
-        return graphql_translate(select(exists(Users.filter(UUID.eq(uuid)))).get_result::<bool>(conn));
+        return graphql_translate(select(exists(Users.filter(UUID.eq(uuid.clone())))).get_result::<bool>(conn));
     }
 }

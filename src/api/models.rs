@@ -3,9 +3,11 @@ mod creation_information;
 mod list;
 mod task;
 mod tag;
+mod utilities;
 
 pub use user::*;
 pub use creation_information::*;
 pub use list::*;
 pub use task::*;
 pub use tag::*;
+pub use utilities::*;

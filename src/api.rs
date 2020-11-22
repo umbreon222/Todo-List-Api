@@ -4,7 +4,5 @@ pub mod db;
 pub mod schema;
 pub mod endpoints;
 pub mod graphql;
-pub mod errors;
-pub mod validators;
 pub mod models;
 pub mod services;
