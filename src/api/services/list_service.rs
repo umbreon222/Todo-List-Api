@@ -2,7 +2,7 @@ use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{graphql_value, FieldError, FieldResult};
 
-use crate::api::constants::{ERROR_DETAILS_KEY, LIST_NOT_CREATED_ERROR_MESSAGE, TASK_NOT_ADDED_ERROR_MESSAGE};
+use crate::api::constants::{ERROR_DETAILS_KEY, LIST_NOT_CREATED_ERROR_MESSAGE, TASK_NOT_ADDED_ERROR_MESSAGE, INTERNAL_ERROR};
 use crate::api::{models, schema};
 use schema::Lists::dsl::*;
 use crate::api::services::{CreationInformationService, TaskService, UserService};
@@ -146,7 +146,7 @@ impl ListService {
             Ok(_size) => graphql_translate(Lists.filter(UUID.eq(new_list.uuid.to_string())).first::<models::ListRow>(conn)),
             Err(err) => {
                 let err_string = err.to_string();
-                FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+                FieldResult::Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
             },
         }
     }

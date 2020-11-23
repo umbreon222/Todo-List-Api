@@ -2,7 +2,7 @@ use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{graphql_value, FieldError, FieldResult};
 
-use crate::api::constants::{ERROR_DETAILS_KEY, USER_NOT_CREATED_ERROR_MESSAGE};
+use crate::api::constants::{ERROR_DETAILS_KEY, USER_NOT_CREATED_ERROR_MESSAGE, INTERNAL_ERROR};
 use crate::api::{models, schema};
 use schema::Users::dsl::*;
 use crate::api::services::utilities::graphql_translate;
@@ -33,7 +33,7 @@ impl UserService {
             Ok(_size) => graphql_translate(Users.filter(UUID.eq(new_user.uuid.to_string())).first::<models::UserRow>(conn)),
             Err(err) => {
                 let err_string = err.to_string();
-                FieldResult::Err(FieldError::new(USER_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+                FieldResult::Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
             }
         }
     }

@@ -1,4 +1,5 @@
 pub const ERROR_DETAILS_KEY: &str = "error_details";
+pub const INTERNAL_ERROR: &str = "Internal error";
 pub const USER_NOT_CREATED_ERROR_MESSAGE: &str = "User not created";
 pub const CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE: &str = "Creation information not created";
 pub const LIST_NOT_CREATED_ERROR_MESSAGE: &str = "List not created";

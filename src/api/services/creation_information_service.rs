@@ -2,9 +2,10 @@ use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{graphql_value, FieldError, FieldResult};
 
-use crate::api::constants::{ERROR_DETAILS_KEY, CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE};
+use crate::api::constants::{ERROR_DETAILS_KEY, CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, INTERNAL_ERROR};
 use crate::api::{models, schema};
 use schema::CreationInformation::dsl::*;
+use crate::api::services::UserService;
 use crate::api::services::utilities::graphql_translate;
 
 pub struct CreationInformationService;
@@ -28,6 +29,19 @@ impl CreationInformationService {
                 return FieldResult::Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
             }
         }
+        // Verify the given creator user uuid exists
+        match UserService::user_exists(conn, &new_creation_information.creator_user_uuid.to_string()) {
+            Ok(user_exists) => {
+                if !user_exists {
+                    let err_details = format!("The user '{}' does not exist", new_creation_information.creator_user_uuid.to_string());
+                    return FieldResult::Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
+                }
+            },
+            Err(err) => {
+                let error_details = err.message();
+                return FieldResult::Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+            }
+        }
         // Create new creation information row
         let new_creation_information_row = new_creation_information.create_new_creation_information_row();
         // Execute insertion
@@ -39,7 +53,7 @@ impl CreationInformationService {
             Ok(_size) => graphql_translate(CreationInformation.filter(UUID.eq(new_creation_information.uuid.to_string())).first::<models::CreationInformationRow>(conn)),
             Err(err) => {
                 let err_string = err.to_string();
-                FieldResult::Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+                FieldResult::Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
             }
         }
     }
