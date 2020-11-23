@@ -29,13 +29,13 @@ impl ListService {
                         creation_information = res;
                     },
                     Err(err) => {
-                        return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
+                        return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
                     }
                 }
             },
             Err(err) => {
                 let err_details = err.message();
-                return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
+                return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
             }
         }
         // Parse create list input
@@ -45,7 +45,7 @@ impl ListService {
                 new_list = list;
             },
             Err(err) => {
-                return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
+                return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
             }
         }
         // Verify the given task uuids exist
@@ -57,12 +57,12 @@ impl ListService {
                         Ok(task_exists) => {
                             if !task_exists {
                                 let error_details: String = format!("The task '{}' does not exist", task_uuid.to_string());
-                                return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+                                return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
                             }
                         },
                         Err(err) => {
                             let error_details = err.message();
-                            return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+                            return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
                         }
                     }
                 }
@@ -76,12 +76,12 @@ impl ListService {
                     Ok(list_exists) => {
                         if !list_exists {
                             let err_details = format!("The parent list '{}' does not exist", list_uuid.to_string());
-                            return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
+                            return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
                         }
                     },
                     Err(err) => {
                         let error_details = err.message();
-                        return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+                        return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
                     }
                 }
             },
@@ -95,12 +95,12 @@ impl ListService {
                         Ok(list_exists) => {
                             if !list_exists {
                                 let err_details = format!("The sub list '{}' does not exist", sub_list_uuid.to_string());
-                                return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
+                                return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
                             }
                         },
                         Err(err) => {
                             let error_details = err.message();
-                            return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+                            return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
                         }
                     }
                 }
@@ -115,12 +115,12 @@ impl ListService {
                         Ok(user_exists) => {
                             if !user_exists {
                                 let err_details = format!("The user '{}' does not exist", shared_with_user_uuid.to_string());
-                                return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
+                                return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
                             }
                         },
                         Err(err) => {
                             let error_details = err.message();
-                            return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+                            return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
                         }
                     }
                 }
@@ -134,20 +134,29 @@ impl ListService {
                 new_list_row = res;
             },
             Err(err) => {
-                return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
+                return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
             }
         }
         // Execute insertion
-        let inserted = diesel::insert_into(schema::Lists::table)
-            .values(&new_list_row)
-            .execute(conn);
-        // Return error or newly inserted row via UUID look up
-        match inserted {
-            Ok(_size) => graphql_translate(Lists.filter(UUID.eq(new_list.uuid.to_string())).first::<models::ListRow>(conn)),
+        match diesel::insert_into(schema::Lists::table).values(&new_list_row).execute(conn) {
+            Ok(_) => {},
             Err(err) => {
-                let err_string = err.to_string();
-                FieldResult::Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+                let error_details = err.to_string();
+                return Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+            }
+        }
+        // Return error or newly inserted row via UUID look up
+        match ListService::get_list_by_uuid(&conn, &new_list.uuid.to_string()) {
+            Ok(res) => {
+                match res {
+                    Some(found) => Ok(found),
+                    None => {
+                        let error_details = format!("Couldn't find list '{}' after insert", new_list.uuid.to_string());
+                        Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: error_details })))
+                    }
+                }
             },
+            Err(err) => Err(err)
         }
     }
 
@@ -158,8 +167,8 @@ impl ListService {
         match Lists.filter(UUID.eq(uuid.clone())).first::<models::ListRow>(conn) {
             Ok(list_row) => Ok(Some(list_row)),
             Err(err) => match err {
-                diesel::result::Error::NotFound => FieldResult::Ok(None),
-                _ => FieldResult::Err(FieldError::from(err)),
+                diesel::result::Error::NotFound => Ok(None),
+                _ => Err(FieldError::from(err)),
             },
         }
     }
@@ -192,7 +201,7 @@ impl ListService {
             },
             Err(err) => {
                 let err_string = err.to_string();
-                return FieldResult::Err(FieldError::new(TASK_NOT_ADDED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })));
+                return Err(FieldError::new(TASK_NOT_ADDED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })));
             },
         };
         // Convert task uuids json to vector
@@ -205,7 +214,7 @@ impl ListService {
                     },
                     Err(err) => {
                         let err_string = err.to_string();
-                        return FieldResult::Err(FieldError::new(TASK_NOT_ADDED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })));
+                        return Err(FieldError::new(TASK_NOT_ADDED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })));
                     },
                 }
             },
@@ -226,7 +235,7 @@ impl ListService {
             },
             Err(err) => {
                 let err_string = err.to_string();
-                FieldResult::Err(FieldError::new(TASK_NOT_ADDED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+                Err(FieldError::new(TASK_NOT_ADDED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
             },
         }
     }

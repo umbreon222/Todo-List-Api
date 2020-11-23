@@ -26,7 +26,7 @@ impl CreationInformationService {
                 new_creation_information = res;
             },
             Err(err) => {
-                return FieldResult::Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
+                return Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
             }
         }
         // Verify the given creator user uuid exists
@@ -34,27 +34,36 @@ impl CreationInformationService {
             Ok(user_exists) => {
                 if !user_exists {
                     let err_details = format!("The user '{}' does not exist", new_creation_information.creator_user_uuid.to_string());
-                    return FieldResult::Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
+                    return Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
                 }
             },
             Err(err) => {
                 let error_details = err.message();
-                return FieldResult::Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+                return Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
             }
         }
         // Create new creation information row
         let new_creation_information_row = new_creation_information.create_new_creation_information_row();
         // Execute insertion
-        let inserted = diesel::insert_into(schema::CreationInformation::table)
-            .values(&new_creation_information_row)
-            .execute(conn);
-        // Return error or newly inserted row via UUID look up
-        match inserted {
-            Ok(_size) => graphql_translate(CreationInformation.filter(UUID.eq(new_creation_information.uuid.to_string())).first::<models::CreationInformationRow>(conn)),
+        match diesel::insert_into(schema::CreationInformation::table).values(&new_creation_information_row).execute(conn) {
+            Ok(_) => {},
             Err(err) => {
-                let err_string = err.to_string();
-                FieldResult::Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+                let error_details = err.to_string();
+                return Err(FieldError::new(CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
             }
+        }
+        // Return error or newly inserted row via UUID look up
+        match CreationInformationService::get_creation_information_by_uuid(&conn, &new_creation_information.uuid.to_string()) {
+            Ok(res) => {
+                match res {
+                    Some(found) => Ok(found),
+                    None => {
+                        let error_details = format!("Couldn't find creation information '{}' after insert", new_creation_information.uuid.to_string());
+                        Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: error_details })))
+                    }
+                }
+            },
+            Err(err) => Err(err)
         }
     }
 
@@ -65,8 +74,8 @@ impl CreationInformationService {
         match CreationInformation.filter(UUID.eq(uuid.clone())).first::<models::CreationInformationRow>(conn) {
             Ok(creation_information) => Ok(Some(creation_information)),
             Err(err) => match err {
-                diesel::result::Error::NotFound => FieldResult::Ok(None),
-                _ => FieldResult::Err(FieldError::from(err))
+                diesel::result::Error::NotFound => Ok(None),
+                _ => Err(FieldError::from(err))
             }
         }
     }

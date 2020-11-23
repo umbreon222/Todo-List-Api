@@ -29,11 +29,11 @@ impl TaskService {
                         creation_information = res;
                     },
                     Err(err) => {
-                        return FieldResult::Err(FieldError::new(TASK_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
+                        return Err(FieldError::new(TASK_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
                     }
                 }
             },
-            Err(err) => return FieldResult::Err(err)
+            Err(err) => return Err(err)
         };
         // Parse create task input
         let new_task: models::Task;
@@ -42,7 +42,7 @@ impl TaskService {
                 new_task = task;
             },
             Err(err) => {
-                return FieldResult::Err(FieldError::new(TASK_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
+                return Err(FieldError::new(TASK_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
             }
         }
         // Create new task row
@@ -52,20 +52,29 @@ impl TaskService {
                 new_task_row = task_row;
             },
             Err(err) => {
-                return FieldResult::Err(FieldError::new(TASK_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
+                return Err(FieldError::new(TASK_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err })));
             }
         }
         // Execute insertion
-        let inserted = diesel::insert_into(schema::Tasks::table)
-            .values(&new_task_row)
-            .execute(conn);
-        // Return error or newly inserted row via UUID look up
-        match inserted {
-            Ok(_size) => graphql_translate(Tasks.filter(UUID.eq(new_task.uuid.to_string())).first::<models::TaskRow>(conn)),
+        match diesel::insert_into(schema::Tasks::table).values(&new_task_row).execute(conn) {
+            Ok(_) => {},
             Err(err) => {
-                let err_string = err.to_string();
-                FieldResult::Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+                let error_details = err.to_string();
+                return Err(FieldError::new(TASK_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
             }
+        }
+        // Return error or newly inserted row via UUID look up
+        match TaskService::get_task_by_uuid(&conn, &new_task.uuid.to_string()) {
+            Ok(res) => {
+                match res {
+                    Some(found) => Ok(found),
+                    None => {
+                        let error_details = format!("Couldn't find task '{}' after insert", new_task.uuid.to_string());
+                        Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: error_details })))
+                    }
+                }
+            },
+            Err(err) => Err(err)
         }
     }
 
@@ -76,8 +85,8 @@ impl TaskService {
         match Tasks.filter(UUID.eq(uuid.clone())).first::<models::TaskRow>(conn) {
             Ok(task) => Ok(Some(task)),
             Err(err) => match err {
-                diesel::result::Error::NotFound => FieldResult::Ok(None),
-                _ => FieldResult::Err(FieldError::from(err))
+                diesel::result::Error::NotFound => Ok(None),
+                _ => Err(FieldError::from(err))
             }
         }
     }

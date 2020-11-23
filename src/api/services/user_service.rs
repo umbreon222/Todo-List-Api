@@ -22,19 +22,26 @@ impl UserService {
         let new_user = create_user_input.create_user();
         // Create new user row
         let new_user_row = new_user.create_new_user_row();
-
         // Execute insertion
-        let inserted = diesel::insert_into(schema::Users::table)
-            .values(&new_user_row)
-            .execute(conn);
-        
-        // Return error or newly inserted row via UUID look up
-        match inserted {
-            Ok(_size) => graphql_translate(Users.filter(UUID.eq(new_user.uuid.to_string())).first::<models::UserRow>(conn)),
+        match diesel::insert_into(schema::Users::table).values(&new_user_row).execute(conn) {
+            Ok(_) => {},
             Err(err) => {
-                let err_string = err.to_string();
-                FieldResult::Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: err_string })))
+                let error_details = err.to_string();
+                return Err(FieldError::new(USER_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
             }
+        }
+        // Return error or newly inserted row via UUID look up
+        match UserService::get_user_by_uuid(&conn, &new_user.uuid.to_string()) {
+            Ok(res) => {
+                match res {
+                    Some(found) => Ok(found),
+                    None => {
+                        let error_details = format!("Couldn't find user '{}' after insert", new_user.uuid.to_string());
+                        Err(FieldError::new(INTERNAL_ERROR, graphql_value!({ ERROR_DETAILS_KEY: error_details })))
+                    }
+                }
+            },
+            Err(err) => Err(err)
         }
     }
 
@@ -45,8 +52,8 @@ impl UserService {
         match Users.filter(UUID.eq(uuid.clone())).first::<models::UserRow>(conn) {
             Ok(user) => Ok(Some(user)),
             Err(err) => match err {
-                diesel::result::Error::NotFound => FieldResult::Ok(None),
-                _ => FieldResult::Err(FieldError::from(err))
+                diesel::result::Error::NotFound => Ok(None),
+                _ => Err(FieldError::from(err))
             }
         }
     }
