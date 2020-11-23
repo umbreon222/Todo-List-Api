@@ -1,5 +1,4 @@
 type ListRow {
-  ID: Int!
   UUID: String!
   Title: String!
   Description: String
@@ -45,10 +44,11 @@ type Mutation {
   ): TaskRow!
 }
 
-input CreateUserInput {
-  username: String!
-  password: String!
-  nickname: String!
+type UserRow {
+  UUID: String!
+  Username: String!
+  PasswordHash: String!
+  Nickname: String!
 }
 
 type Query {
@@ -56,16 +56,13 @@ type Query {
   allLists: [ListRow!]!
 }
 
-type UserRow {
-  ID: Int!
-  UUID: String!
-  Username: String!
-  PasswordHash: String!
-  Nickname: String!
+input CreateUserInput {
+  username: String!
+  password: String!
+  nickname: String!
 }
 
 type TaskRow {
-  ID: Int!
   UUID: String!
   Content: String!
   Priority: Int!

@@ -8,7 +8,7 @@ use crate::api::models::utilities::parse_json_uuid_array;
 #[derive(GraphQLObject)]
 #[derive(Queryable)]
 pub struct TaskRow {
-    #[graphql(name = "ID")]
+    #[graphql(skip)]
     pub id: i32,
     #[graphql(name = "UUID")]
     pub uuid: String,

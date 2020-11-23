@@ -9,7 +9,7 @@ const PASSWORD_HASH_SALT: &'static str = "pr3tz3ls&mcd0nalds_fr1es";
 #[derive(GraphQLObject)]
 #[derive(Queryable)]
 pub struct UserRow {
-    #[graphql(name = "ID")]
+    #[graphql(skip)]
     pub id: i32,
     #[graphql(name = "UUID")]
     pub uuid: String,

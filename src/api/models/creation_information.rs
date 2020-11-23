@@ -7,7 +7,7 @@ use crate::api::schema::*;
 #[derive(GraphQLObject)]
 #[derive(Queryable)]
 pub struct CreationInformationRow {
-    #[graphql(name = "ID")]
+    #[graphql(skip)]
     pub id: i32,
     #[graphql(name = "UUID")]
     pub uuid: String,
