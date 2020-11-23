@@ -5,7 +5,7 @@ use serde_json;
 pub fn parse_color_hex(color_hex: &String) -> Result<String, String> {
     let pattern = Regex::new(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$").unwrap();
     if !pattern.is_match(color_hex) {
-        return Err(format!("Invalid color hex \"{}\"", color_hex));
+        return Err(format!("Invalid color hex '{}'", color_hex));
     }
     Ok(color_hex.to_string())
 }
@@ -20,14 +20,14 @@ pub fn parse_json_uuid_array(json_uuids: &String) -> Result<Vec<Uuid>, String> {
                         uuids.push(res);
                     },
                     Err(_) => {
-                        return Err(format!("Invalid uuid \"{}\"", uuid_string));
+                        return Err(format!("Invalid uuid '{}'", uuid_string));
                     }
                 };
             }
             return Ok(uuids);
         },
-        Err(_) => {
-            return Err(format!("Invalid json list {}", json_uuids));
+        Err(err) => {
+            return Err(err.to_string());
         }
     }
 }

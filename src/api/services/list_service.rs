@@ -5,7 +5,7 @@ use juniper::{graphql_value, FieldError, FieldResult};
 use crate::api::constants::{ERROR_DETAILS_KEY, LIST_NOT_CREATED_ERROR_MESSAGE, TASK_NOT_ADDED_ERROR_MESSAGE};
 use crate::api::{models, schema};
 use schema::Lists::dsl::*;
-use crate::api::services::{CreationInformationService, TaskService};
+use crate::api::services::{CreationInformationService, TaskService, UserService};
 use crate::api::services::utilities::graphql_translate;
 
 pub struct ListService;
@@ -56,7 +56,7 @@ impl ListService {
                     match TaskService::task_exists(conn, &task_uuid.to_string()) {
                         Ok(task_exists) => {
                             if !task_exists {
-                                let error_details: String = format!("Task '{}' does not exist", task_uuid.to_string());
+                                let error_details: String = format!("The task '{}' does not exist", task_uuid.to_string());
                                 return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
                             }
                         },
@@ -95,6 +95,26 @@ impl ListService {
                         Ok(list_exists) => {
                             if !list_exists {
                                 let err_details = format!("The sub list '{}' does not exist", sub_list_uuid.to_string());
+                                return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
+                            }
+                        },
+                        Err(err) => {
+                            let error_details = err.message();
+                            return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: error_details })));
+                        }
+                    }
+                }
+            },
+            None => {},
+        }
+        // Verify the shared with user uuids exist
+        match &new_list.shared_with_user_uuids {
+            Some(shared_with_user_uuids) => {
+                for shared_with_user_uuid in shared_with_user_uuids {
+                    match UserService::user_exists(conn, &shared_with_user_uuid.to_string()) {
+                        Ok(user_exists) => {
+                            if !user_exists {
+                                let err_details = format!("The user '{}' does not exist", shared_with_user_uuid.to_string());
                                 return FieldResult::Err(FieldError::new(LIST_NOT_CREATED_ERROR_MESSAGE, graphql_value!({ ERROR_DETAILS_KEY: err_details })));
                             }
                         },
