@@ -55,10 +55,10 @@ impl Mutation {
     pub fn create_list(
         context: &GraphQLContext,
         list_uuid: String,
-        list_item_uuid: String
+        task_uuid: String
     ) -> FieldResult<ListRow> {
         let conn: &SqliteConnection = &context.pool.get().unwrap();
-        ListService::add_task(conn, &list_uuid, &list_item_uuid)
+        ListService::add_task(conn, &list_uuid, &task_uuid)
     }
 
     // Task

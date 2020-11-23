@@ -1,3 +1,16 @@
+type ListRow {
+  ID: Int!
+  UUID: String!
+  Title: String!
+  Description: String
+  ColorHex: String
+  TaskUUIDs: String
+  ParentListUUID: String
+  SubListUUIDs: String
+  SharedWithUserUUIDs: String
+  CreationInformationUUID: String!
+}
+
 input CreateListInput {
   title: String!
   description: String
@@ -20,31 +33,16 @@ input CreateTaskInput {
 }
 
 type Mutation {
-  createUser(input: CreateUserInput!): User!
+  createUser(input: CreateUserInput!): UserRow!
   createList(
     creationInformationInput: CreateCreationInformationInput!
     listInput: CreateListInput!
-  ): List!
-  addTaskToList(listUuid: String!, listItemUuid: String!): List!
+  ): ListRow!
+  addTaskToList(listUuid: String!, taskUuid: String!): ListRow!
   createTask(
     creationInformationInput: CreateCreationInformationInput!
     taskInput: CreateTaskInput!
-  ): Task!
-}
-
-type Task {
-  ID: Int!
-  UUID: String!
-  Content: String!
-  Priority: Int!
-  TagUUIDs: String
-  IsComplete: Boolean!
-  CreationInformationUUID: String!
-}
-
-type Query {
-  allUsers: [User!]!
-  allLists: [List!]!
+  ): TaskRow!
 }
 
 input CreateUserInput {
@@ -53,7 +51,12 @@ input CreateUserInput {
   nickname: String!
 }
 
-type User {
+type Query {
+  allUsers: [UserRow!]!
+  allLists: [ListRow!]!
+}
+
+type UserRow {
   ID: Int!
   UUID: String!
   Username: String!
@@ -61,15 +64,12 @@ type User {
   Nickname: String!
 }
 
-type List {
+type TaskRow {
   ID: Int!
   UUID: String!
-  Title: String!
-  Description: String
-  ColorHex: String
-  TaskUUIDs: String
-  ParentListUUID: String
-  SubListUUIDs: String
-  SharedWithUserUUIDs: String
+  Content: String!
+  Priority: Int!
+  TagUUIDs: String
+  IsComplete: Boolean!
   CreationInformationUUID: String!
 }
