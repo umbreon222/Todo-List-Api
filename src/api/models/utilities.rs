@@ -11,7 +11,7 @@ pub fn parse_color_hex(color_hex: &String) -> Result<String, String> {
 }
 
 pub fn parse_json_uuid_array(json_uuids: &String) -> Result<Vec<Uuid>, String> {
-    match serde_json::from_str::<Vec<String>>(json_uuids) {
+    return match serde_json::from_str::<Vec<String>>(json_uuids) {
         Ok(uuid_strings) => {
             let mut uuids: Vec<Uuid> = vec![];
             for uuid_string in uuid_strings {
@@ -24,10 +24,10 @@ pub fn parse_json_uuid_array(json_uuids: &String) -> Result<Vec<Uuid>, String> {
                     }
                 };
             }
-            return Ok(uuids);
+            Ok(uuids)
         },
         Err(err) => {
-            return Err(err.to_string());
+            Err(err.to_string())
         }
     }
 }

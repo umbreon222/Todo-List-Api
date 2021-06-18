@@ -9,39 +9,29 @@ use crate::api::models::utilities::{parse_color_hex, parse_json_uuid_array};
 pub struct ListRow {
     #[graphql(skip)]
     pub id: i32,
-    #[graphql(name = "UUID")]
     pub uuid: String,
-    #[graphql(name = "Title")]
     pub title: String,
-    #[graphql(name = "Description")]
     pub description: Option<String>,
-    #[graphql(name = "ColorHex")]
     pub color_hex: Option<String>,
-    #[graphql(name = "TaskUUIDs")]
     pub task_uuids: Option<String>,
-    #[graphql(name = "ParentListUUID")]
     pub parent_list_uuid: Option<String>,
-    #[graphql(name = "SubListUUIDs")]
     pub sub_list_uuids: Option<String>,
-    #[graphql(name = "SharedWithUserUUIDs")]
     pub shared_with_user_uuids: Option<String>,
-    #[graphql(name = "CreationInformationUUID")]
     pub creation_information_uuid: String
 }
 
 #[derive(Insertable)]
-#[table_name = "Lists"]
-#[allow(non_snake_case)]
+#[table_name = "lists"]
 pub struct NewListRow {
-    pub UUID: String,
-    pub Title: String,
-    pub Description: Option<String>,
-    pub ColorHex: Option<String>,
-    pub TaskUUIDs: Option<String>,
-    pub ParentListUUID: Option<String>,
-    pub SubListUUIDs: Option<String>,
-    pub SharedWithUserUUIDs: Option<String>,
-    pub CreationInformationUUID: String
+    pub uuid: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub color_hex: Option<String>,
+    pub task_uuids: Option<String>,
+    pub parent_list_uuid: Option<String>,
+    pub sub_list_uuids: Option<String>,
+    pub shared_with_user_uuids: Option<String>,
+    pub creation_information_uuid: String
 }
 
 #[derive(GraphQLInputObject)]
@@ -176,7 +166,10 @@ impl List {
         let json_task_uuids: Option<String>;
         match &self.task_uuids {
             Some(task_uuids) => {
-                let string_task_uuids: Vec<String> = task_uuids.into_iter().map(|uuid| uuid.to_string()).collect();
+                let string_task_uuids: Vec<String> = task_uuids
+                    .into_iter()
+                    .map(|uuid| uuid.to_string())
+                    .collect();
                 match serde_json::to_string(&string_task_uuids) {
                     Ok(res) => {
                         json_task_uuids = Some(res);
@@ -204,7 +197,10 @@ impl List {
         let json_sub_list_uuids: Option<String>;
         match &self.sub_list_uuids {
             Some(sub_list_uuids) => {
-                let string_sub_list_uuids: Vec<String> = sub_list_uuids.into_iter().map(|uuid| uuid.to_string()).collect();
+                let string_sub_list_uuids: Vec<String> = sub_list_uuids
+                    .into_iter()
+                    .map(|uuid: &Uuid| uuid.to_string())
+                    .collect();
                 match serde_json::to_string(&string_sub_list_uuids) {
                     Ok(res) => {
                         json_sub_list_uuids = Some(res);
@@ -222,7 +218,10 @@ impl List {
         let json_shared_with_uuids: Option<String>;
         match &self.shared_with_user_uuids {
             Some(shared_with_user_uuids) => {
-                let string_shared_with_user_uuids: Vec<String> = shared_with_user_uuids.into_iter().map(|uuid| uuid.to_string()).collect();
+                let string_shared_with_user_uuids: Vec<String> = shared_with_user_uuids
+                    .into_iter()
+                    .map(|uuid| uuid.to_string())
+                    .collect();
                 match serde_json::to_string(&string_shared_with_user_uuids) {
                     Ok(res) => {
                         json_shared_with_uuids = Some(res);
@@ -237,15 +236,15 @@ impl List {
             }
         }
         Ok(NewListRow {
-            UUID: self.uuid.to_string(),
-            Title: self.title.clone(),
-            Description: self.description.clone(),
-            ColorHex: self.color_hex.clone(),
-            TaskUUIDs: json_task_uuids,
-            ParentListUUID: string_parent_list_uuid,
-            SubListUUIDs: json_sub_list_uuids,
-            SharedWithUserUUIDs: json_shared_with_uuids,
-            CreationInformationUUID: self.creation_information_uuid.to_string()
+            uuid: self.uuid.to_string(),
+            title: self.title.clone(),
+            description: self.description.clone(),
+            color_hex: self.color_hex.clone(),
+            task_uuids: json_task_uuids,
+            parent_list_uuid: string_parent_list_uuid,
+            sub_list_uuids: json_sub_list_uuids,
+            shared_with_user_uuids: json_shared_with_uuids,
+            creation_information_uuid: self.creation_information_uuid.to_string()
         })
     } 
 }

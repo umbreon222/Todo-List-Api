@@ -9,27 +9,21 @@ use crate::api::schema::*;
 pub struct CreationInformationRow {
     #[graphql(skip)]
     pub id: i32,
-    #[graphql(name = "UUID")]
     pub uuid: String,
-    #[graphql(name = "CreatorUserUUID")]
     pub creator_user_uuid: String,
-    #[graphql(name = "CreationTime")]
     pub creation_time: String,
-    #[graphql(name = "LastUpdatedByUserUUID")]
     pub last_updated_by_user_uuid: String,
-    #[graphql(name = "LastUpdatedTime")]
     pub last_updated_time: String
 }
 
 #[derive(Insertable)]
-#[table_name = "CreationInformation"]
-#[allow(non_snake_case)]
+#[table_name = "creation_information"]
 pub struct NewCreationInformationRow {
-    pub UUID: String,
-    pub CreatorUserUUID: String,
-    pub CreationTime: String,
-    pub LastUpdatedByUserUUID: String,
-    pub LastUpdatedTime: String
+    pub uuid: String,
+    pub creator_user_uuid: String,
+    pub creation_time: String,
+    pub last_updated_by_user_uuid: String,
+    pub last_updated_time: String
 }
 
 #[derive(GraphQLInputObject)]
@@ -128,14 +122,35 @@ impl CreateCreationInformationInput {
     }
 }
 
+/*impl UpdateCreationInformationInput {
+    pub fn create_update_creation_information(&self) -> Result<CreationInformationStruct, String> {
+        // Generate uuid for new creation information
+        let uuid = Uuid::new_v4();
+        // Parse creator user uuid
+        match Uuid::parse_str(&self.creator_user_uuid) {
+            Ok(creator_user_uuid) => {
+                let current_time = Utc::now();
+                Ok(CreationInformationStruct {
+                    uuid,
+                    creator_user_uuid: creator_user_uuid.clone(),
+                    creation_time: current_time.clone(),
+                    last_updated_by_user_uuid: creator_user_uuid,
+                    last_updated_time: current_time
+                })
+            },
+            Err(err) => Err(err.to_string())
+        }
+    }
+}*/
+
 impl CreationInformationStruct {
     pub fn create_new_creation_information_row(&self) -> NewCreationInformationRow {
         NewCreationInformationRow {
-            UUID: self.uuid.to_string(),
-            CreatorUserUUID: self.creator_user_uuid.to_string(),
-            CreationTime: self.creation_time.to_rfc3339(),
-            LastUpdatedByUserUUID: self.last_updated_by_user_uuid.to_string(),
-            LastUpdatedTime: self.last_updated_time.to_rfc3339()
+            uuid: self.uuid.to_string(),
+            creator_user_uuid: self.creator_user_uuid.to_string(),
+            creation_time: self.creation_time.to_rfc3339(),
+            last_updated_by_user_uuid: self.last_updated_by_user_uuid.to_string(),
+            last_updated_time: self.last_updated_time.to_rfc3339()
         }
     }
 }

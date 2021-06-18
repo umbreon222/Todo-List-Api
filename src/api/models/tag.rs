@@ -4,10 +4,7 @@ use juniper::GraphQLObject;
 struct TagRow {
     #[graphql(skip)]
     pub id: i32,
-    #[graphql(name = "UUID")]
     pub uuid: String,
-    #[graphql(name = "Title")]
     pub title: String,
-    #[graphql(name = "CreationInformationUUID")]
     pub creation_information_uuid: i32
 }

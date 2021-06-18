@@ -1,1 +1,1 @@
-DROP TABLE Lists
+DROP TABLE lists

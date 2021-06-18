@@ -1,65 +1,64 @@
-#![allow(non_snake_case)]
 table! {
-    CreationInformation (ID) {
-        ID -> Integer,
-        UUID -> Text,
-        CreatorUserUUID -> Text,
-        CreationTime -> Text,
-        LastUpdatedByUserUUID -> Text,
-        LastUpdatedTime -> Text,
+    creation_information (id) {
+        id -> Integer,
+        uuid -> Text,
+        creator_user_uuid -> Text,
+        creation_time -> Text,
+        last_updated_by_user_uuid -> Text,
+        last_updated_time -> Text,
     }
 }
 
 table! {
-    Lists (ID) {
-        ID -> Integer,
-        UUID -> Text,
-        Title -> Text,
-        Description -> Nullable<Text>,
-        ColorHex -> Nullable<Text>,
-        TaskUUIDs -> Nullable<Text>,
-        ParentListUUID -> Nullable<Text>,
-        SubListUUIDs -> Nullable<Text>,
-        SharedWithUserUUIDs -> Nullable<Text>,
-        CreationInformationUUID -> Text,
+    lists (id) {
+        id -> Integer,
+        uuid -> Text,
+        title -> Text,
+        description -> Nullable<Text>,
+        color_hex -> Nullable<Text>,
+        task_uuids -> Nullable<Text>,
+        parent_list_uuid -> Nullable<Text>,
+        sub_list_uuids -> Nullable<Text>,
+        shared_with_user_uuids -> Nullable<Text>,
+        creation_information_uuid -> Text,
     }
 }
 
 table! {
-    Tags (ID) {
-        ID -> Integer,
-        UUID -> Text,
-        Title -> Text,
-        CreationInformationUUID -> Text,
+    tags (id) {
+        id -> Integer,
+        uuid -> Text,
+        title -> Text,
+        creation_information_uuid -> Text,
     }
 }
 
 table! {
-    Tasks (ID) {
-        ID -> Integer,
-        UUID -> Text,
-        Content -> Text,
-        Priority -> Integer,
-        TagUUIDs -> Nullable<Text>,
-        IsComplete -> Bool,
-        CreationInformationUUID -> Text,
+    tasks (id) {
+        id -> Integer,
+        uuid -> Text,
+        content -> Text,
+        priority -> Integer,
+        tag_uuids -> Nullable<Text>,
+        is_complete -> Bool,
+        creation_information_uuid -> Text,
     }
 }
 
 table! {
-    Users (ID) {
-        ID -> Integer,
-        UUID -> Text,
-        Username -> Text,
-        PasswordHash -> Text,
-        Nickname -> Text,
+    users (id) {
+        id -> Integer,
+        uuid -> Text,
+        username -> Text,
+        password_hash -> Text,
+        nickname -> Text,
     }
 }
 
 allow_tables_to_appear_in_same_query!(
-    CreationInformation,
-    Lists,
-    Tags,
-    Tasks,
-    Users,
+    creation_information,
+    lists,
+    tags,
+    tasks,
+    users,
 );

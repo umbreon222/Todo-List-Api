@@ -1,7 +1,7 @@
-CREATE TABLE Users (
-  ID INTEGER PRIMARY KEY NOT NULL,
-  UUID TEXT NOT NULL,
-  Username TEXT NOT NULL,
-  PasswordHash TEXT NOT NULL,
-  Nickname TEXT NOT NULL
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY NOT NULL,
+  uuid TEXT NOT NULL,
+  username TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  nickname TEXT NOT NULL
 )

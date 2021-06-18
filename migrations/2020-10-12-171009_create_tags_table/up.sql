@@ -1,6 +1,6 @@
-CREATE TABLE Tags (
-  ID INTEGER PRIMARY KEY NOT NULL,
-  UUID TEXT NOT NULL,
-  Title TEXT NOT NULL,
-  CreationInformationUUID TEXT NOT NULL
+CREATE TABLE tags (
+  id INTEGER PRIMARY KEY NOT NULL,
+  uuid TEXT NOT NULL,
+  title TEXT NOT NULL,
+  creation_information_uuid TEXT NOT NULL
 )

@@ -10,30 +10,23 @@ use crate::api::models::utilities::parse_json_uuid_array;
 pub struct TaskRow {
     #[graphql(skip)]
     pub id: i32,
-    #[graphql(name = "UUID")]
     pub uuid: String,
-    #[graphql(name = "Content")]
     pub content: String,
-    #[graphql(name = "Priority")]
     pub priority: i32,
-    #[graphql(name = "TagUUIDs")]
     pub tag_uuids: Option<String>,
-    #[graphql(name = "IsComplete")]
     pub is_complete: bool,
-    #[graphql(name = "CreationInformationUUID")]
     pub creation_information_uuid: String
 }
 
 #[derive(Insertable)]
-#[table_name = "Tasks"]
-#[allow(non_snake_case)]
+#[table_name = "tasks"]
 pub struct NewTaskRow {
-    pub UUID: String,
-    pub Content: String,
-    pub Priority: i32,
-    pub TagUUIDs: Option<String>,
-    pub IsComplete: bool,
-    pub CreationInformationUUID: String
+    pub uuid: String,
+    pub content: String,
+    pub priority: i32,
+    pub tag_uuids: Option<String>,
+    pub is_complete: bool,
+    pub creation_information_uuid: String
 }
 
 #[derive(GraphQLInputObject)]
@@ -91,7 +84,10 @@ impl Task {
         let json_tag_uuids: Option<String>;
         match &self.tag_uuids {
             Some(tag_uuids) => {
-                let string_tag_uuids: Vec<String> = tag_uuids.into_iter().map(|uuid| uuid.to_string()).collect();
+                let string_tag_uuids: Vec<String> = tag_uuids
+                    .into_iter()
+                    .map(|uuid| uuid.to_string())
+                    .collect();
                 match serde_json::to_string(&string_tag_uuids) {
                     Ok(res) => {
                         json_tag_uuids = Some(res);
@@ -106,12 +102,12 @@ impl Task {
             }
         }
         Ok(NewTaskRow {
-            UUID: self.uuid.to_string(),
-            Content: self.content.clone(),
-            Priority: self.priority,
-            TagUUIDs: json_tag_uuids,
-            IsComplete: self.is_complete,
-            CreationInformationUUID: self.creation_information_uuid.to_string()
+            uuid: self.uuid.to_string(),
+            content: self.content.clone(),
+            priority: self.priority,
+            tag_uuids: json_tag_uuids,
+            is_complete: self.is_complete,
+            creation_information_uuid: self.creation_information_uuid.to_string()
         })
     } 
 }

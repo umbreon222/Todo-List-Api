@@ -1,1 +1,1 @@
-DROP TABLE CreationInformation
+DROP TABLE creation_information

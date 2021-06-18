@@ -1,9 +1,9 @@
-CREATE TABLE Tasks (
-  ID INTEGER PRIMARY KEY NOT NULL,
-  UUID TEXT NOT NULL,
-  Content TEXT NOT NULL,
-  Priority INTEGER NOT NULL DEFAULT 0,
-  TagUUIDs TEXT,
-  IsComplete BOOLEAN NOT NULL DEFAULT 0,
-  CreationInformationUUID TEXT NOT NULL
+CREATE TABLE tasks (
+  id INTEGER PRIMARY KEY NOT NULL,
+  uuid TEXT NOT NULL,
+  content TEXT NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 0,
+  tag_uuids TEXT,
+  is_complete BOOLEAN NOT NULL DEFAULT 0,
+  creation_information_uuid TEXT NOT NULL
 )

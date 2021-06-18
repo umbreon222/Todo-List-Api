@@ -11,24 +11,19 @@ const PASSWORD_HASH_SALT: &'static str = "pr3tz3ls&mcd0nalds_fr1es";
 pub struct UserRow {
     #[graphql(skip)]
     pub id: i32,
-    #[graphql(name = "UUID")]
     pub uuid: String,
-    #[graphql(name = "Username")]
     pub username: String,
-    #[graphql(name = "PasswordHash")]
     pub password_hash: String,
-    #[graphql(name = "Nickname")]
     pub nickname: String
 }
 
 #[derive(Insertable)]
-#[table_name = "Users"]
-#[allow(non_snake_case)]
+#[table_name = "users"]
 pub struct NewUserRow {
-    pub UUID: String,
-    pub Username: String,
-    pub PasswordHash: String,
-    pub Nickname: String
+    pub uuid: String,
+    pub username: String,
+    pub password_hash: String,
+    pub nickname: String
 }
 
 #[derive(GraphQLInputObject)]
@@ -67,10 +62,10 @@ impl CreateUserInput {
 impl User {
     pub fn create_new_user_row(&self) -> NewUserRow {
         return NewUserRow {
-            UUID: self.uuid.to_string(),
-            Username: self.username.clone(),
-            PasswordHash: self.password_hash.clone(),
-            Nickname: self.nickname.clone()
+            uuid: self.uuid.to_string(),
+            username: self.username.clone(),
+            password_hash: self.password_hash.clone(),
+            nickname: self.nickname.clone()
         }
     } 
 }

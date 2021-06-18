@@ -12,7 +12,7 @@ use std::{env, io};
 use actix_web::{middleware, App, HttpServer};
 
 use api::db::get_pool;
-use api::endpoints::graphql_endpoints;
+use api::endpoints::{graphql_endpoints, auth_endpoints};
 
 #[actix_rt::main]
 async fn main() -> io::Result<()> {
@@ -25,6 +25,7 @@ async fn main() -> io::Result<()> {
             .data(pool.clone())
             .wrap(middleware::Logger::default())
             .configure(graphql_endpoints)
+            .configure(auth_endpoints)
     })
     .bind("0.0.0.0:4000")?
     .run()
