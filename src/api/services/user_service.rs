@@ -10,14 +10,14 @@ use crate::api::services::utilities::{graphql_translate, graphql_error_translate
 pub struct UserService;
 
 impl UserService {
-    pub fn all_users(conn: &SqliteConnection) -> FieldResult<Vec<models::UserRow>> {
-        graphql_translate(dsl::users.load::<models::UserRow>(conn))
+    pub fn all_users(conn: &SqliteConnection) -> FieldResult<Vec<models::database::UserRow>> {
+        graphql_translate(dsl::users.load::<models::database::UserRow>(conn))
     }
 
     pub fn create_user(
         conn: &SqliteConnection,
-        create_user_input: models::CreateUserInput
-    ) -> FieldResult<models::UserRow> {
+        create_user_input: models::graphql::CreateUserInput
+    ) -> FieldResult<models::database::UserRow> {
         // Parse create user input
         let new_user = create_user_input.create_user();
         // Create new user row
@@ -59,8 +59,8 @@ impl UserService {
     pub fn get_user_by_uuid(
         conn: &SqliteConnection,
         uuid: &String
-    ) -> FieldResult<Option<models::UserRow>> {
-        match dsl::users.filter(dsl::uuid.eq(uuid.clone())).first::<models::UserRow>(conn) {
+    ) -> FieldResult<Option<models::database::UserRow>> {
+        match dsl::users.filter(dsl::uuid.eq(uuid.clone())).first::<models::database::UserRow>(conn) {
             Ok(user) => Ok(Some(user)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),

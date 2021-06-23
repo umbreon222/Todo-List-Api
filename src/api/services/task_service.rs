@@ -11,15 +11,15 @@ use crate::api::services::utilities::{graphql_translate, graphql_error_translate
 pub struct TaskService;
 
 impl TaskService {
-    pub fn all_tasks(conn: &SqliteConnection) -> FieldResult<Vec<models::TaskRow>> {
-        graphql_translate(dsl::tasks.load::<models::TaskRow>(conn))
+    pub fn all_tasks(conn: &SqliteConnection) -> FieldResult<Vec<models::database::TaskRow>> {
+        graphql_translate(dsl::tasks.load::<models::database::TaskRow>(conn))
     }
 
     pub fn create_task(
         conn: &SqliteConnection,
-        create_creation_information_input: models::CreateCreationInformationInput,
-        create_task_input: models::CreateTaskInput
-    ) -> FieldResult<models::TaskRow> {
+        create_creation_information_input: models::graphql::CreateCreationInformationInput,
+        create_task_input: models::graphql::CreateTaskInput
+    ) -> FieldResult<models::database::TaskRow> {
         // Use creation information service to create a creation information object in db
         let creation_information: models::CreationInformationStruct;
         match CreationInformationService::create_creation_information(
@@ -55,7 +55,7 @@ impl TaskService {
             }
         }
         // Create new task row
-        let new_task_row: models::NewTaskRow;
+        let new_task_row: models::database::NewTaskRow;
         match new_task.create_new_task_row() {
             Ok(task_row) => {
                 new_task_row = task_row;
@@ -103,8 +103,8 @@ impl TaskService {
     pub fn get_task_by_uuid(
         conn: &SqliteConnection,
         uuid: &String
-    ) -> FieldResult<Option<models::TaskRow>> {
-        match dsl::tasks.filter(dsl::uuid.eq(uuid.clone())).first::<models::TaskRow>(conn) {
+    ) -> FieldResult<Option<models::database::TaskRow>> {
+        match dsl::tasks.filter(dsl::uuid.eq(uuid.clone())).first::<models::database::TaskRow>(conn) {
             Ok(task) => Ok(Some(task)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),

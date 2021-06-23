@@ -12,3 +12,9 @@ Cargo.lock
 
 # SQLite database
 *.db
+
+# Intellij IDE
+.idea/
+
+# VS Code
+.vscode/

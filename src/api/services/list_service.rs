@@ -11,15 +11,15 @@ use crate::api::services::utilities::{graphql_translate, graphql_error_translate
 pub struct ListService;
 
 impl ListService {
-    pub fn all_lists(conn: &SqliteConnection) -> FieldResult<Vec<models::ListRow>> {
-        graphql_translate(dsl::lists.load::<models::ListRow>(conn))
+    pub fn all_lists(conn: &SqliteConnection) -> FieldResult<Vec<models::database::ListRow>> {
+        graphql_translate(dsl::lists.load::<models::database::ListRow>(conn))
     }
 
     pub fn create_list(
         conn: &SqliteConnection,
-        new_creation_information_input: models::CreateCreationInformationInput,
-        create_list_input: models::CreateListInput
-    ) -> FieldResult<models::ListRow> {
+        new_creation_information_input: models::graphql::CreateCreationInformationInput,
+        create_list_input: models::graphql::CreateListInput
+    ) -> FieldResult<models::database::ListRow> {
         // Create creation information
         let creation_information: models::CreationInformationStruct;
         match CreationInformationService::create_creation_information(
@@ -171,7 +171,7 @@ impl ListService {
             None => {}
         }
         // Create new list row
-        let new_list_row: models::NewListRow;
+        let new_list_row: models::database::NewListRow;
         match new_list.create_new_list_row() {
             Ok(res) => {
                 new_list_row = res;
@@ -219,8 +219,8 @@ impl ListService {
     pub fn get_list_by_uuid(
         conn: &SqliteConnection,
         uuid: &String
-    ) -> FieldResult<Option<models::ListRow>> {
-        match dsl::lists.filter(dsl::uuid.eq(uuid.clone())).first::<models::ListRow>(conn) {
+    ) -> FieldResult<Option<models::database::ListRow>> {
+        match dsl::lists.filter(dsl::uuid.eq(uuid.clone())).first::<models::database::ListRow>(conn) {
             Ok(list_row) => Ok(Some(list_row)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),
@@ -246,7 +246,7 @@ impl ListService {
         conn: &SqliteConnection,
         list_uuid: &String,
         task_uuid: &String
-    ) -> FieldResult<models::ListRow> {
+    ) -> FieldResult<models::database::ListRow> {
         // Grab id and current task uuids from the list
         let list_id: i32;
         let task_uuids: Option<String>;
@@ -297,7 +297,7 @@ impl ListService {
                 graphql_translate(
                     dsl::lists
                         .filter(dsl::uuid.eq(list_uuid.clone()))
-                        .first::<models::ListRow>(conn)
+                        .first::<models::database::ListRow>(conn)
                 )
             },
             Err(err) => {

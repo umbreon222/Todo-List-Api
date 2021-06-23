@@ -2,8 +2,9 @@ use diesel::sqlite::SqliteConnection;
 use juniper::{FieldResult, RootNode};
 
 use crate::api::context::GraphQLContext;
-use crate::api::models::{CreateUserInput, UserRow, CreateCreationInformationInput, CreateListInput,
-                         ListRow, CreateTaskInput, TaskRow};
+use crate::api::models::graphql::{CreateUserInput, CreateCreationInformationInput, CreateListInput,
+                                  CreateTaskInput};
+use crate::api::models::database::{UserRow, ListRow, TaskRow};
 use crate::api::services::{UserService, ListService, TaskService};
 
 // The root GraphQL query
@@ -50,16 +51,6 @@ impl Mutation {
     ) -> FieldResult<ListRow> {
         let conn: &SqliteConnection = &context.pool.get().unwrap();
         ListService::create_list(conn, creation_information_input, list_input )
-    }
-
-    #[graphql(name = "addTaskToList")]
-    pub fn add_task(
-        context: &GraphQLContext,
-        list_uuid: String,
-        task_uuid: String
-    ) -> FieldResult<ListRow> {
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        ListService::add_task(conn, &list_uuid, &task_uuid)
     }
 
     // Task

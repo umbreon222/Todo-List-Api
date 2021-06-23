@@ -1,4 +1,4 @@
-pub mod utilities;
+mod utilities;
 mod user_service;
 mod creation_information_service;
 mod list_service;

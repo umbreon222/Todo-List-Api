@@ -13,14 +13,14 @@ pub struct CreationInformationService;
 impl CreationInformationService {
     pub fn all_creation_information(
         conn: &SqliteConnection
-    ) -> FieldResult<Vec<models::CreationInformationRow>> {
-        graphql_translate(dsl::creation_information.load::<models::CreationInformationRow>(conn))
+    ) -> FieldResult<Vec<models::database::CreationInformationRow>> {
+        graphql_translate(dsl::creation_information.load::<models::database::CreationInformationRow>(conn))
     }
 
     pub fn create_creation_information(
         conn: &SqliteConnection,
-        create_creation_information_input: models::CreateCreationInformationInput
-    ) -> FieldResult<models::CreationInformationRow> {
+        create_creation_information_input: models::graphql::CreateCreationInformationInput
+    ) -> FieldResult<models::database::CreationInformationRow> {
         // Parse create creation information input
         let new_creation_information: models::CreationInformationStruct;
         match create_creation_information_input.create_creation_information() {
@@ -100,10 +100,10 @@ impl CreationInformationService {
     pub fn get_creation_information_by_uuid(
         conn: &SqliteConnection,
         uuid: &String
-    ) -> FieldResult<Option<models::CreationInformationRow>> {
+    ) -> FieldResult<Option<models::database::CreationInformationRow>> {
         match dsl::creation_information
             .filter(dsl::uuid.eq(uuid.clone()))
-            .first::<models::CreationInformationRow>(conn) {
+            .first::<models::database::CreationInformationRow>(conn) {
                 Ok(creation_information) => Ok(Some(creation_information)),
                 Err(err) => match err {
                     diesel::result::Error::NotFound => Ok(None),
