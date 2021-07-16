@@ -6,39 +6,35 @@ pub struct Task {
     pub uuid: Uuid,
     pub content: String,
     pub priority: i32,
-    pub tag_uuids: Option<Vec<Uuid>>,
+    pub tags: Option<Vec<String>>,
     pub is_complete: bool,
     pub creation_information_uuid: Uuid
 }
 
 impl Task {
     pub fn create_new_task_row(&self) -> Result<NewTaskRow, String> {
-        // Convert tag uuids to json
-        let json_tag_uuids: Option<String>;
-        match &self.tag_uuids {
-            Some(tag_uuids) => {
-                let string_tag_uuids: Vec<String> = tag_uuids
-                    .into_iter()
-                    .map(|uuid| uuid.to_string())
-                    .collect();
-                match serde_json::to_string(&string_tag_uuids) {
+        // Convert tags to json
+        let json_tags: Option<String>;
+        match &self.tags {
+            Some(tags) => {
+                match serde_json::to_string(&tags) {
                     Ok(res) => {
-                        json_tag_uuids = Some(res);
+                        json_tags = Some(res);
                     },
                     Err(_) => {
-                        return Err(String::from("Error serializing tag uuids to json"));
+                        return Err(String::from("Error serializing tags to json"));
                     }
                 }
             },
             None => {
-                json_tag_uuids = None;
+                json_tags = None;
             }
         }
         Ok(NewTaskRow {
             uuid: self.uuid.to_string(),
             content: self.content.clone(),
             priority: self.priority,
-            tag_uuids: json_tag_uuids,
+            tags: json_tags,
             is_complete: self.is_complete,
             creation_information_uuid: self.creation_information_uuid.to_string()
         })

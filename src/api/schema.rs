@@ -25,21 +25,12 @@ table! {
 }
 
 table! {
-    tags (id) {
-        id -> Integer,
-        uuid -> Text,
-        title -> Text,
-        creation_information_uuid -> Text,
-    }
-}
-
-table! {
     tasks (id) {
         id -> Integer,
         uuid -> Text,
         content -> Text,
         priority -> Integer,
-        tag_uuids -> Nullable<Text>,
+        tags -> Nullable<Text>,
         is_complete -> Bool,
         creation_information_uuid -> Text,
     }
@@ -58,7 +49,6 @@ table! {
 allow_tables_to_appear_in_same_query!(
     creation_information,
     lists,
-    tags,
     tasks,
     users,
 );

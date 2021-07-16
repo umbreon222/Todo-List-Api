@@ -6,7 +6,7 @@ pub struct NewTaskRow {
     pub uuid: String,
     pub content: String,
     pub priority: i32,
-    pub tag_uuids: Option<String>,
+    pub tags: Option<String>,
     pub is_complete: bool,
     pub creation_information_uuid: String
 }
