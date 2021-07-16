@@ -21,13 +21,13 @@ impl TaskService {
         create_task_input: models::graphql::CreateTaskInput
     ) -> FieldResult<models::database::TaskRow> {
         // Use creation information service to create a creation information object in db
-        let creation_information: models::CreationInformationStruct;
+        let creation_information: models::CreationInformation;
         match CreationInformationService::create_creation_information(
             conn,
             create_creation_information_input
         ) {
             Ok(creation_information_row) => {
-                match creation_information_row.create_creation_information_struct() {
+                match creation_information_row.create_creation_information() {
                     Ok(res) => {
                         creation_information = res;
                     },
@@ -104,7 +104,7 @@ impl TaskService {
         conn: &SqliteConnection,
         uuid: &String
     ) -> FieldResult<Option<models::database::TaskRow>> {
-        match dsl::tasks.filter(dsl::uuid.eq(uuid.clone())).first::<models::database::TaskRow>(conn) {
+        match dsl::tasks.filter(dsl::uuid.eq(uuid)).first::<models::database::TaskRow>(conn) {
             Ok(task) => Ok(Some(task)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),
@@ -122,7 +122,7 @@ impl TaskService {
         
         return graphql_translate(
             select(
-                exists(dsl::tasks.filter(dsl::uuid.eq(uuid.clone())))
+                exists(dsl::tasks.filter(dsl::uuid.eq(uuid)))
             ).get_result::<bool>(conn)
         );
     }

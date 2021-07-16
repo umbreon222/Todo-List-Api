@@ -21,13 +21,13 @@ impl ListService {
         create_list_input: models::graphql::CreateListInput
     ) -> FieldResult<models::database::ListRow> {
         // Create creation information
-        let creation_information: models::CreationInformationStruct;
+        let creation_information: models::CreationInformation;
         match CreationInformationService::create_creation_information(
             conn,
             new_creation_information_input
         ) {
             Ok(creation_information_row) => {
-                match creation_information_row.create_creation_information_struct() {
+                match creation_information_row.create_creation_information() {
                     Ok(res) => {
                         creation_information = res;
                     },
@@ -220,7 +220,7 @@ impl ListService {
         conn: &SqliteConnection,
         uuid: &String
     ) -> FieldResult<Option<models::database::ListRow>> {
-        match dsl::lists.filter(dsl::uuid.eq(uuid.clone())).first::<models::database::ListRow>(conn) {
+        match dsl::lists.filter(dsl::uuid.eq(uuid)).first::<models::database::ListRow>(conn) {
             Ok(list_row) => Ok(Some(list_row)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),
@@ -237,9 +237,114 @@ impl ListService {
         use diesel::dsl::exists;
         
         return graphql_translate(
-            select(exists(dsl::lists.filter(dsl::uuid.eq(uuid.clone()))))
+            select(exists(dsl::lists.filter(dsl::uuid.eq(uuid))))
                 .get_result::<bool>(conn)
         );
+    }
+
+    pub fn update_list(
+        conn: &SqliteConnection,
+        update_creation_information_input: models::graphql::UpdateCreationInformationInput,
+        update_list_input: models::graphql::UpdateListInput
+    ) -> FieldResult<models::database::ListRow> {
+        // Find the list row to update
+        let list_row: models::database::ListRow;
+        match ListService::get_list_by_uuid(&conn, &update_list_input.uuid) {
+            Ok(result) => {
+                match result {
+                    Some(found_list_row) => {
+                        list_row = found_list_row;
+                    },
+                    None => {
+                        return Err(
+                            graphql_error_translate(
+                                constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                                format!("List '{}' not found", update_list_input.uuid.to_string())
+                            )
+                        );
+                    }
+                }
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err.message().to_string()
+                ));
+            }
+        }
+        // Create list from list row
+        let list: models::List;
+        match list_row.create_list() {
+            Ok(res) => {
+                list = res;
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err
+                ));
+            }
+        }
+        // Update list
+        let updated_list: models::List;
+        match update_list_input.create_updated_list(list) {
+            Ok(res) => {
+                updated_list = res;
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err
+                ));
+            }
+        }
+        // Convert updated list back to list row
+        let updated_list_row: models::database::ListRow;
+        match updated_list.create_updated_list_row(list_row) {
+            Ok(res) => {
+                updated_list_row = res;
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err
+                ));
+            }
+        }
+        // Execute Update
+        match diesel::update(dsl::lists.filter(dsl::uuid.eq(updated_list_row.uuid.clone())))
+            .set((
+                dsl::title.eq(updated_list_row.title.clone()),
+                dsl::description.eq(updated_list_row.description.clone()),
+                dsl::color_hex.eq(updated_list_row.color_hex.clone()),
+                dsl::task_uuids.eq(updated_list_row.task_uuids.clone()),
+                dsl::parent_list_uuid.eq(updated_list_row.parent_list_uuid.clone()),
+                dsl::sub_list_uuids.eq(updated_list_row.sub_list_uuids.clone()),
+                dsl::shared_with_user_uuids.eq(updated_list_row.shared_with_user_uuids.clone())
+            )).execute(conn) {
+                Ok(_) => {},
+                Err(err) => {
+                    return Err(graphql_error_translate(
+                        constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                        err.to_string()
+                    ));
+                }
+            }
+        // Update creation information and return updated list row on success
+        match CreationInformationService::update_creation_information(
+            conn,
+            update_creation_information_input
+        ) {
+            Ok(_res) => {
+                return Ok(updated_list_row)
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err.message().to_string()
+                )); 
+            }
+        }
     }
 
     pub fn add_task(
@@ -251,7 +356,7 @@ impl ListService {
         let list_id: i32;
         let task_uuids: Option<String>;
         let query = dsl::lists.select((dsl::id, dsl::task_uuids))
-            .filter(dsl::uuid.eq(list_uuid.clone()))
+            .filter(dsl::uuid.eq(list_uuid))
             .first::<(i32, Option<String>)>(conn);
         match query {
             Ok(res) => {
@@ -284,7 +389,7 @@ impl ListService {
             None => {}
         }
         // Add the task to the list
-        updated_task_uuids.push(task_uuid.clone());
+        updated_task_uuids.push(task_uuid.to_string());
         // Convert the modified task uuids list back to a json string
         let updated_task_uuids_json = serde_json::to_string(&updated_task_uuids)?;
         // Create update list row

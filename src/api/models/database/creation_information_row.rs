@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use juniper::GraphQLObject;
 
-use crate::api::models::CreationInformationStruct;
+use crate::api::models::CreationInformation;
 
 #[derive(GraphQLObject)]
 #[derive(Queryable)]
@@ -17,7 +17,7 @@ pub struct CreationInformationRow {
 }
 
 impl CreationInformationRow {
-    pub fn create_creation_information_struct(&self) -> Result<CreationInformationStruct, String> {
+    pub fn create_creation_information(&self) -> Result<CreationInformation, String> {
         // Parse uuid
         let uuid: Uuid;
         match Uuid::parse_str(&self.uuid) {
@@ -68,7 +68,7 @@ impl CreationInformationRow {
                 return Err(err.to_string());
             }
         }
-        Ok(CreationInformationStruct {
+        Ok(CreationInformation {
             uuid,
             creator_user_uuid,
             creation_time,

@@ -60,7 +60,7 @@ impl UserService {
         conn: &SqliteConnection,
         uuid: &String
     ) -> FieldResult<Option<models::database::UserRow>> {
-        match dsl::users.filter(dsl::uuid.eq(uuid.clone())).first::<models::database::UserRow>(conn) {
+        match dsl::users.filter(dsl::uuid.eq(uuid)).first::<models::database::UserRow>(conn) {
             Ok(user) => Ok(Some(user)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),
@@ -78,7 +78,7 @@ impl UserService {
         
         return graphql_translate(
             select(
-                exists(dsl::users.filter(dsl::uuid.eq(uuid.clone())))
+                exists(dsl::users.filter(dsl::uuid.eq(uuid)))
             ).get_result::<bool>(conn)
         );
     }

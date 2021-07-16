@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::api::models::database::NewCreationInformationRow;
+use crate::api::models::database::{CreationInformationRow, NewCreationInformationRow};
 
-pub struct CreationInformationStruct {
+pub struct CreationInformation {
     pub uuid: Uuid,
     pub creator_user_uuid: Uuid,
     pub creation_time: DateTime<Utc>,
@@ -11,7 +11,7 @@ pub struct CreationInformationStruct {
     pub last_updated_time: DateTime<Utc>
 }
 
-impl CreationInformationStruct {
+impl CreationInformation {
     pub fn create_new_creation_information_row(&self) -> NewCreationInformationRow {
         NewCreationInformationRow {
             uuid: self.uuid.to_string(),
@@ -19,6 +19,22 @@ impl CreationInformationStruct {
             creation_time: self.creation_time.to_rfc3339(),
             last_updated_by_user_uuid: self.last_updated_by_user_uuid.to_string(),
             last_updated_time: self.last_updated_time.to_rfc3339()
+        }
+    }
+
+    pub fn create_updated_creation_information_row(
+        &self,
+        creation_information_row: CreationInformationRow
+    ) -> CreationInformationRow {
+        // We can cheat and use the above function to do the conversion for us
+        let new_creation_information_row = self.create_new_creation_information_row();
+        CreationInformationRow {
+            id: creation_information_row.id,
+            uuid: new_creation_information_row.uuid,
+            creator_user_uuid: new_creation_information_row.creator_user_uuid,
+            creation_time: new_creation_information_row.creation_time,
+            last_updated_by_user_uuid: new_creation_information_row.last_updated_by_user_uuid,
+            last_updated_time: new_creation_information_row.last_updated_time
         }
     }
 }
