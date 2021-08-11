@@ -7,8 +7,6 @@ use crate::api::models::CreationInformation;
 #[derive(GraphQLObject)]
 #[derive(Queryable)]
 pub struct CreationInformationRow {
-    #[graphql(skip)]
-    pub id: i32,
     pub uuid: String,
     pub creator_user_uuid: String,
     pub creation_time: String,

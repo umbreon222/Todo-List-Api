@@ -29,11 +29,10 @@ impl CreationInformation {
         // We can cheat and use the above function to do the conversion for us
         let new_creation_information_row = self.create_new_creation_information_row();
         CreationInformationRow {
-            id: creation_information_row.id,
             uuid: new_creation_information_row.uuid,
             creator_user_uuid: new_creation_information_row.creator_user_uuid,
             creation_time: new_creation_information_row.creation_time,
-            last_updated_by_user_uuid: new_creation_information_row.last_updated_by_user_uuid,
+            last_updated_by_user_uuid: creation_information_row.last_updated_by_user_uuid,
             last_updated_time: new_creation_information_row.last_updated_time
         }
     }

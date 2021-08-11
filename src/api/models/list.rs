@@ -16,6 +16,16 @@ pub struct List {
 
 impl List {
     pub fn create_new_list_row(&self) -> Result<NewListRow, String> {
+        Ok(NewListRow {
+            uuid: self.uuid.to_string(),
+            title: self.title.clone(),
+            description: self.description.clone(),
+            color_hex: self.color_hex.clone(),
+            creation_information_uuid: self.creation_information_uuid.to_string()
+        })
+    }
+
+    pub fn create_updated_list_row(&self, list_row: ListRow) -> Result<ListRow, String> {
         // Convert task uuids to json
         let json_task_uuids: Option<String>;
         match &self.task_uuids {
@@ -89,7 +99,7 @@ impl List {
                 json_shared_with_uuids = None;
             }
         }
-        Ok(NewListRow {
+        Ok(ListRow {
             uuid: self.uuid.to_string(),
             title: self.title.clone(),
             description: self.description.clone(),
@@ -100,28 +110,5 @@ impl List {
             shared_with_user_uuids: json_shared_with_uuids,
             creation_information_uuid: self.creation_information_uuid.to_string()
         })
-    }
-
-    pub fn create_updated_list_row(&self, list_row: ListRow) -> Result<ListRow, String> {
-        // We can cheat and use the above function to do the conversion for us
-        match self.create_new_list_row() {
-            Ok(new_list_row) => {
-                Ok(ListRow {
-                    id: list_row.id,
-                    uuid: new_list_row.uuid,
-                    title: new_list_row.title,
-                    description: new_list_row.description,
-                    color_hex: new_list_row.color_hex,
-                    task_uuids: new_list_row.task_uuids,
-                    parent_list_uuid: new_list_row.parent_list_uuid,
-                    sub_list_uuids: new_list_row.sub_list_uuids,
-                    shared_with_user_uuids: new_list_row.shared_with_user_uuids,
-                    creation_information_uuid: new_list_row.creation_information_uuid
-                })
-            },
-            Err(err) => {
-                Err(err)
-            }
-        }
     }
 }

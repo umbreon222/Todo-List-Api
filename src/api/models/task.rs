@@ -2,12 +2,20 @@ use uuid::Uuid;
 
 use crate::api::models::database::NewTaskRow;
 
+#[derive(FromPrimitive, ToPrimitive)]
+pub enum TaskPriority {
+    LOW = 0,
+    NORMAL = 1,
+    HIGH = 2,
+}
+
 pub struct Task {
     pub uuid: Uuid,
     pub content: String,
-    pub priority: i32,
+    pub priority: TaskPriority,
     pub tags: Option<Vec<String>>,
     pub is_complete: bool,
+    pub parent_list_uuid: Uuid,
     pub creation_information_uuid: Uuid
 }
 
@@ -30,12 +38,15 @@ impl Task {
                 json_tags = None;
             }
         }
+        // Convert priority to primitive
+        let priority = num_traits::ToPrimitive::to_i32(&self.priority);
         Ok(NewTaskRow {
             uuid: self.uuid.to_string(),
             content: self.content.clone(),
-            priority: self.priority,
+            priority: priority.unwrap_or(1), // Default to normal
             tags: json_tags,
             is_complete: self.is_complete,
+            parent_list_uuid: self.parent_list_uuid.to_string(),
             creation_information_uuid: self.creation_information_uuid.to_string()
         })
     } 

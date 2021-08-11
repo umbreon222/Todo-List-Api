@@ -8,7 +8,3 @@ pub const LIST_NOT_FOUND_ERROR_MESSAGE: &str = "List not found";
 pub const LIST_NOT_UPDATED_ERROR_MESSAGE: &str = "List not updated";
 pub const TASK_NOT_CREATED_ERROR_MESSAGE: &str = "Task not created";
 pub const TASK_NOT_ADDED_ERROR_MESSAGE: &str = "Task not added";
-// Eventually these should be an enum somewhere
-pub const HIGH_TASK_PRIORITY: i32 = 2;
-pub const MEDIUM_TASK_PRIORITY: i32 = 1;
-pub const LOW_TASK_PRIORITY: i32 = 0;

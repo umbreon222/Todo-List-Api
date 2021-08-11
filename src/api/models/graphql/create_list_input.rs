@@ -2,17 +2,13 @@ use uuid::Uuid;
 use juniper::GraphQLInputObject;
 
 use crate::api::models::List;
-use crate::api::models::utilities::{parse_color_hex, parse_json_uuid_array};
+use crate::api::models::utilities::parse_color_hex;
 
 #[derive(GraphQLInputObject)]
 pub struct CreateListInput {
     pub title: String,
     pub description: Option<String>,
     pub color_hex: Option<String>,
-    pub task_uuids: Option<String>,
-    pub parent_list_uuid: Option<String>,
-    pub sub_list_uuids: Option<String>,
-    pub shared_with_user_uuids: Option<String>
 }
 
 impl CreateListInput {
@@ -36,6 +32,8 @@ impl CreateListInput {
                 color_hex = None;
             }
         }
+        // These make this exponentially large and should be broken up
+        /*
         // Parse task uuids
         let task_uuids: Option<Vec<Uuid>>;
         match &self.task_uuids {
@@ -103,16 +101,16 @@ impl CreateListInput {
             None => {
                 shared_with_user_uuids = None;
             }
-        }
+        }*/
         Ok(List {
             uuid,
             title: self.title.clone(),
             description: self.description.clone(),
             color_hex,
-            task_uuids,
-            parent_list_uuid,
-            sub_list_uuids,
-            shared_with_user_uuids,
+            task_uuids: None,
+            parent_list_uuid: None,
+            sub_list_uuids: None,
+            shared_with_user_uuids: None,
             creation_information_uuid: creation_information_uuid.clone()
         })
     }

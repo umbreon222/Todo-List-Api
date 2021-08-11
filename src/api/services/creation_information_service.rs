@@ -128,13 +128,14 @@ impl CreationInformationService {
 
     pub fn update_creation_information (
         conn: &SqliteConnection,
+        uuid: &String,
         update_creation_information_input: models::graphql::UpdateCreationInformationInput
     ) -> FieldResult<models::database::CreationInformationRow> {
         // Find the creation information row to update
         let creation_information_row: models::database::CreationInformationRow;
         match CreationInformationService::get_creation_information_by_uuid(
             &conn,
-            &update_creation_information_input.uuid
+            &uuid
         ) {
             Ok(res) => {
                 match res {
@@ -145,7 +146,7 @@ impl CreationInformationService {
                         return Err(
                             graphql_error_translate(
                                 constants::CREATION_INFORMATION_NOT_UPDATED_ERROR_MESSAGE.to_string(),
-                                format!("Creation information '{}' not found", update_creation_information_input.uuid)
+                                format!("Creation information '{}' not found", uuid)
                             )
                         );
                     }

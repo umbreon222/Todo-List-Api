@@ -11,7 +11,7 @@ use crate::api::models::graphql::{
     CreateTaskInput
 };
 use crate::api::models::database::{UserRow, ListRow, TaskRow};
-use crate::api::services::{UserService, ListService, TaskService};
+use crate::api::services::{UserService, ListService};
 
 // The root GraphQL query
 pub struct Query;
@@ -69,15 +69,14 @@ impl Mutation {
         ListService::update_list(conn, update_creation_information_input, update_list_input)
     }
 
-    // Task
-    #[graphql(name = "createTask")]
-    pub fn create_task(
+    #[graphql(name = "addNewTask")]
+    pub fn update_list(
         context: &GraphQLContext,
         creation_information_input: CreateCreationInformationInput,
-        task_input: CreateTaskInput
+        create_task_input: CreateTaskInput
     ) -> FieldResult<TaskRow> {
         let conn: &SqliteConnection = &context.pool.get().unwrap();
-        TaskService::create_task(conn, creation_information_input, task_input)
+        ListService::add_new_task(conn, creation_information_input, create_task_input)
     }
 }
 

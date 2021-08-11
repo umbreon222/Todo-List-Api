@@ -6,7 +6,6 @@ use crate::api::models::CreationInformation;
 
 #[derive(GraphQLInputObject)]
 pub struct UpdateCreationInformationInput {
-    pub uuid: String,
     pub last_updated_by_user_uuid: String
 }
 

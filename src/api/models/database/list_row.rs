@@ -7,8 +7,6 @@ use crate::api::models::utilities::{parse_color_hex, parse_json_uuid_array};
 #[derive(GraphQLObject)]
 #[derive(Queryable)]
 pub struct ListRow {
-    #[graphql(skip)]
-    pub id: i32,
     pub uuid: String,
     pub title: String,
     pub description: Option<String>,

@@ -59,6 +59,8 @@ impl ListService {
                 ));
             }
         }
+        // TODO: Break this up into smaller functions
+        /*
         // Verify the given task uuids exist
         match &new_list.task_uuids {
             Some(task_uuids) => {
@@ -170,6 +172,7 @@ impl ListService {
             },
             None => {}
         }
+        */
         // Create new list row
         let new_list_row: models::database::NewListRow;
         match new_list.create_new_list_row() {
@@ -331,85 +334,139 @@ impl ListService {
                 }
             }
         // Update creation information and return updated list row on success
-        match CreationInformationService::update_creation_information(
+        return match CreationInformationService::update_creation_information(
             conn,
+            &updated_list_row.creation_information_uuid,
             update_creation_information_input
         ) {
             Ok(_res) => {
-                return Ok(updated_list_row)
+                Ok(updated_list_row)
+            },
+            Err(err) => {
+                Err(graphql_error_translate(
+                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err.message().to_string()
+                ))
+            }
+        }
+    }
+
+    pub fn add_new_task(
+        conn: &SqliteConnection,
+        create_creation_information_input: models::graphql::CreateCreationInformationInput,
+        create_task_input: models::graphql::CreateTaskInput
+    ) -> FieldResult<models::database::TaskRow> {
+        // Find the list row to update
+        let list_row: models::database::ListRow;
+        match ListService::get_list_by_uuid(&conn, &create_task_input.parent_list_uuid) {
+            Ok(result) => {
+                match result {
+                    Some(found_list_row) => {
+                        list_row = found_list_row;
+                    },
+                    None => {
+                        return Err(
+                            graphql_error_translate(
+                                constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
+                                format!("List '{}' not found", create_task_input.parent_list_uuid.to_string())
+                            )
+                        );
+                    }
+                }
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
+                    err.message().to_string()
+                ));
+            }
+        }
+        // Create list from list row
+        let mut updated_list: models::List;
+        match list_row.create_list() {
+            Ok(res) => {
+                updated_list = res;
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
+                    err
+                ));
+            }
+        }
+        // Create task row from task input
+        // Grab the uuid of the user who is updating the task before the input object is swallowed
+        let last_updated_by_user_uuid = create_creation_information_input.creator_user_uuid.clone();
+        let created_task_row: models::database::TaskRow;
+        match TaskService::create_task(conn, create_creation_information_input, create_task_input) {
+            Ok(task_row) => {
+                created_task_row = task_row;
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::TASK_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                    err.message().to_string()
+                ));
+            }
+        }
+        // Create task from task row
+        match created_task_row.create_task() {
+            Ok(task) => {
+                let mut updated_task_uuids = updated_list.task_uuids.clone().unwrap_or_default();
+                updated_task_uuids.push(task.uuid.clone());
+                updated_list.task_uuids = Some(updated_task_uuids);
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
+                    err
+                ));
+            }
+        }
+        // Convert updated list back to list row
+        let updated_list_row: models::database::ListRow;
+        match updated_list.create_updated_list_row(list_row) {
+            Ok(res) => {
+                updated_list_row = res;
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err
+                ));
+            }
+        }
+        // Execute Update
+        match diesel::update(dsl::lists.filter(dsl::uuid.eq(updated_list_row.uuid.clone())))
+        .set(dsl::task_uuids.eq(updated_list_row.task_uuids.clone()))
+        .execute(conn) {
+            Ok(_) => {},
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err.to_string()
+                ));
+            }
+        }
+        
+        // Create update creation information input from new creation information input
+        let update_creation_information_input = models::graphql::UpdateCreationInformationInput {
+            last_updated_by_user_uuid,
+        };
+        // Update creation information and return updated list row on success
+        match CreationInformationService::update_creation_information(
+            conn,
+            &updated_list_row.creation_information_uuid,
+            update_creation_information_input
+        ) {
+            Ok(_res) => {
+                return Ok(created_task_row);
             },
             Err(err) => {
                 return Err(graphql_error_translate(
                     constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
                     err.message().to_string()
                 )); 
-            }
-        }
-    }
-
-    pub fn add_task(
-        conn: &SqliteConnection,
-        list_uuid: &String,
-        task_uuid: &String
-    ) -> FieldResult<models::database::ListRow> {
-        // Grab id and current task uuids from the list
-        let list_id: i32;
-        let task_uuids: Option<String>;
-        let query = dsl::lists.select((dsl::id, dsl::task_uuids))
-            .filter(dsl::uuid.eq(list_uuid))
-            .first::<(i32, Option<String>)>(conn);
-        match query {
-            Ok(res) => {
-                list_id = res.0;
-                task_uuids = res.1;
-            },
-            Err(err) => {
-                return Err(graphql_error_translate(
-                    constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
-                    err.to_string()
-                ));
-            }
-        };
-        // Convert task uuids json to vector
-        let mut updated_task_uuids: Vec<String> = vec![];
-        match task_uuids {
-            Some(task_uuids_json) => {
-                match serde_json::from_str(&task_uuids_json) {
-                    Ok(mut task_uuids) => {
-                        updated_task_uuids.append(&mut task_uuids);
-                    },
-                    Err(err) => {
-                        return Err(graphql_error_translate(
-                            constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
-                            err.to_string()
-                        ));
-                    },
-                }
-            },
-            None => {}
-        }
-        // Add the task to the list
-        updated_task_uuids.push(task_uuid.to_string());
-        // Convert the modified task uuids list back to a json string
-        let updated_task_uuids_json = serde_json::to_string(&updated_task_uuids)?;
-        // Create update list row
-        let updated = diesel::update(dsl::lists.find(list_id))
-            .set(dsl::task_uuids.eq(updated_task_uuids_json))
-            .execute(conn);
-        // Return error or newly inserted row via UUID look up
-        match updated {
-            Ok(_size) => {
-                graphql_translate(
-                    dsl::lists
-                        .filter(dsl::uuid.eq(list_uuid.clone()))
-                        .first::<models::database::ListRow>(conn)
-                )
-            },
-            Err(err) => {
-                Err(graphql_error_translate(
-                    constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
-                    err.to_string()
-                ))
             }
         }
     }
