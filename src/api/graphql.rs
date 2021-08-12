@@ -2,10 +2,16 @@ use diesel::sqlite::SqliteConnection;
 use juniper::{FieldResult, RootNode};
 
 use crate::api::context::GraphQLContext;
-use crate::api::models::graphql::{CreateUserInput, CreateCreationInformationInput, CreateListInput,
-                                  CreateTaskInput};
-use crate::api::models::database::{UserRow, ListRow, TaskRow};
-use crate::api::services::{UserService, ListService, TaskService};
+use crate::api::models::graphql::{
+    CreateUserInput,
+    CreateCreationInformationInput,
+    UpdateCreationInformationInput,
+    CreateListInput,
+    UpdateListInput,
+    CreateTaskInput
+};
+use crate::api::models::database::{UserRow, ListRow, TaskRow, CreationInformationRow};
+use crate::api::services::{UserService, ListService, TaskService, CreationInformationService};
 
 // The root GraphQL query
 pub struct Query;
@@ -24,6 +30,18 @@ impl Query {
     pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<ListRow>> {
         let conn: &SqliteConnection = &context.pool.get().unwrap();
         ListService::all_lists(conn)
+    }
+
+    #[graphql(name = "allTasks")]
+    pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<TaskRow>> {
+        let conn: &SqliteConnection = &context.pool.get().unwrap();
+        TaskService::all_tasks(conn)
+    }
+
+    #[graphql(name = "allCreationInformation")]
+    pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<CreationInformationRow>> {
+        let conn: &SqliteConnection = &context.pool.get().unwrap();
+        CreationInformationService::all_creation_information(conn)
     }
 }
 
@@ -53,15 +71,24 @@ impl Mutation {
         ListService::create_list(conn, creation_information_input, list_input )
     }
 
-    // Task
-    #[graphql(name = "createTask")]
-    pub fn create_task(
+    #[graphql(name = "updateList")]
+    pub fn update_list(
+        context: &GraphQLContext,
+        update_creation_information_input: UpdateCreationInformationInput,
+        update_list_input: UpdateListInput
+    ) -> FieldResult<ListRow> {
+        let conn: &SqliteConnection = &context.pool.get().unwrap();
+        ListService::update_list(conn, update_creation_information_input, update_list_input)
+    }
+
+    #[graphql(name = "addNewTask")]
+    pub fn update_list(
         context: &GraphQLContext,
         creation_information_input: CreateCreationInformationInput,
-        task_input: CreateTaskInput
+        create_task_input: CreateTaskInput
     ) -> FieldResult<TaskRow> {
         let conn: &SqliteConnection = &context.pool.get().unwrap();
-        TaskService::create_task(conn, creation_information_input, task_input)
+        ListService::add_new_task(conn, creation_information_input, create_task_input)
     }
 }
 

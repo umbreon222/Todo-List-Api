@@ -1,10 +1,13 @@
 extern crate dotenv;
 extern crate env_logger;
 extern crate juniper;
-#[macro_use] extern crate diesel;
+#[macro_use]
+extern crate diesel;
 extern crate r2d2;
 extern crate actix_rt;
 extern crate actix_web;
+#[macro_use]
+extern crate num_derive;
 
 mod api;
 

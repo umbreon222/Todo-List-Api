@@ -19,9 +19,9 @@ impl UserService {
         create_user_input: models::graphql::CreateUserInput
     ) -> FieldResult<models::database::UserRow> {
         // Parse create user input
-        let new_user = create_user_input.create_user();
+        let new_user = models::User::from_create_user_input(create_user_input);
         // Create new user row
-        let new_user_row = new_user.create_new_user_row();
+        let new_user_row = models::database::UserRow::from_user(new_user);
         // Execute insertion
         match diesel::insert_into(schema::users::table)
             .values(&new_user_row)
@@ -35,14 +35,14 @@ impl UserService {
                 }
             }
         // Return error or newly inserted row via UUID look up
-        match UserService::get_user_by_uuid(&conn, &new_user.uuid.to_string()) {
+        match UserService::get_user_by_uuid(&conn, &new_user_row.uuid) {
             Ok(res) => {
                 match res {
                     Some(found) => Ok(found),
                     None => {
                         let error_details = format!(
                             "Couldn't find user '{}' after insert",
-                            new_user.uuid.to_string()
+                            &new_user_row.uuid
                         );
                         Err(
                             graphql_error_translate(
@@ -60,7 +60,7 @@ impl UserService {
         conn: &SqliteConnection,
         uuid: &String
     ) -> FieldResult<Option<models::database::UserRow>> {
-        match dsl::users.filter(dsl::uuid.eq(uuid.clone())).first::<models::database::UserRow>(conn) {
+        match dsl::users.filter(dsl::uuid.eq(uuid)).first::<models::database::UserRow>(conn) {
             Ok(user) => Ok(Some(user)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),
@@ -78,7 +78,7 @@ impl UserService {
         
         return graphql_translate(
             select(
-                exists(dsl::users.filter(dsl::uuid.eq(uuid.clone())))
+                exists(dsl::users.filter(dsl::uuid.eq(uuid)))
             ).get_result::<bool>(conn)
         );
     }

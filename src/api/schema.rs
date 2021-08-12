@@ -1,6 +1,5 @@
 table! {
-    creation_information (id) {
-        id -> Integer,
+    creation_information (uuid) {
         uuid -> Text,
         creator_user_uuid -> Text,
         creation_time -> Text,
@@ -10,8 +9,7 @@ table! {
 }
 
 table! {
-    lists (id) {
-        id -> Integer,
+    lists (uuid) {
         uuid -> Text,
         title -> Text,
         description -> Nullable<Text>,
@@ -25,20 +23,19 @@ table! {
 }
 
 table! {
-    tasks (id) {
-        id -> Integer,
+    tasks (uuid) {
         uuid -> Text,
         content -> Text,
         priority -> Integer,
         tags -> Nullable<Text>,
         is_complete -> Bool,
+        parent_list_uuid -> Text,
         creation_information_uuid -> Text,
     }
 }
 
 table! {
-    users (id) {
-        id -> Integer,
+    users (uuid) {
         uuid -> Text,
         username -> Text,
         password_hash -> Text,

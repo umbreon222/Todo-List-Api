@@ -17,3 +17,5 @@ rust-crypto = "^0.2.36"
 uuid = { version = "^0.8.1", features = ["serde", "v4"] }
 regex = "1"
 chrono = "^0.4"
+num-traits = "0.2"
+num-derive = "0.3"

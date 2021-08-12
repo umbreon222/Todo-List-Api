@@ -1,6 +1,5 @@
 CREATE TABLE lists (
-  id INTEGER PRIMARY KEY NOT NULL,
-  uuid TEXT NOT NULL,
+  uuid TEXT PRIMARY KEY NOT NULL,
   title TEXT NOT NULL,
   description TEXT,
   color_hex TEXT,

@@ -1,14 +1,11 @@
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use juniper::GraphQLObject;
 
-use crate::api::models::CreationInformationStruct;
+use crate::api::schema::*;
+use crate::api::models::CreationInformation;
 
-#[derive(GraphQLObject)]
-#[derive(Queryable)]
+#[derive(GraphQLObject, Queryable, Clone, Insertable)]
+#[table_name = "creation_information"]
 pub struct CreationInformationRow {
-    #[graphql(skip)]
-    pub id: i32,
     pub uuid: String,
     pub creator_user_uuid: String,
     pub creation_time: String,
@@ -17,63 +14,13 @@ pub struct CreationInformationRow {
 }
 
 impl CreationInformationRow {
-    pub fn create_creation_information_struct(&self) -> Result<CreationInformationStruct, String> {
-        // Parse uuid
-        let uuid: Uuid;
-        match Uuid::parse_str(&self.uuid) {
-            Ok(res) => {
-                uuid = res;
-            },
-            Err(err) => {
-                return Err(err.to_string());
-            }
+    pub fn from_creation_information(creation_information: CreationInformation) -> CreationInformationRow {
+        CreationInformationRow {
+            uuid: creation_information.uuid.to_string(),
+            creator_user_uuid: creation_information.creator_user_uuid.to_string(),
+            creation_time: creation_information.creation_time.to_rfc3339(),
+            last_updated_by_user_uuid: creation_information.last_updated_by_user_uuid.to_string(),
+            last_updated_time: creation_information.last_updated_time.to_rfc3339()
         }
-        // Parse creator user uuid
-        let creator_user_uuid: Uuid;
-        match Uuid::parse_str(&self.creator_user_uuid) {
-            Ok(res) => {
-                creator_user_uuid = res;
-            },
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        }
-        // Parse creation time
-        let creation_time: DateTime<Utc>;
-        match DateTime::parse_from_rfc3339(&self.creation_time) {
-            Ok(res) => {
-                creation_time = res.with_timezone(&Utc);
-            },
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        }
-        // Parse last updated by user uuid
-        let last_updated_by_user_uuid: Uuid;
-        match Uuid::parse_str(&self.last_updated_by_user_uuid) {
-            Ok(res) => {
-                last_updated_by_user_uuid = res;
-            },
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        }
-        // Parse last updated time
-        let last_updated_time: DateTime<Utc>;
-        match DateTime::parse_from_rfc3339(&self.last_updated_time) {
-            Ok(res) => {
-                last_updated_time = res.with_timezone(&Utc);
-            },
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        }
-        Ok(CreationInformationStruct {
-            uuid,
-            creator_user_uuid,
-            creation_time,
-            last_updated_by_user_uuid,
-            last_updated_time
-        })
     }
 }

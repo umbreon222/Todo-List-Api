@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{FieldError, FieldResult};
@@ -7,6 +8,7 @@ use crate::api::{models, schema};
 use schema::creation_information::dsl;
 use crate::api::services::UserService;
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
+use crate::api::models::database::CreationInformationRow;
 
 pub struct CreationInformationService;
 
@@ -22,14 +24,14 @@ impl CreationInformationService {
         create_creation_information_input: models::graphql::CreateCreationInformationInput
     ) -> FieldResult<models::database::CreationInformationRow> {
         // Parse create creation information input
-        let new_creation_information: models::CreationInformationStruct;
-        match create_creation_information_input.create_creation_information() {
+        let new_creation_information: models::CreationInformation;
+        match models::CreationInformation::from_create_creation_information_input(create_creation_information_input) {
             Ok(res) => {
                 new_creation_information = res;
             },
             Err(err) => {
                 return Err(graphql_error_translate(
-                    constants::INTERNAL_ERROR.to_string(),
+                    constants::CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE.to_string(),
                     err
                 ));
             }
@@ -46,21 +48,20 @@ impl CreationInformationService {
                         new_creation_information.creator_user_uuid.to_string()
                     );
                     return Err(graphql_error_translate(
-                        constants::INTERNAL_ERROR.to_string(),
+                        constants::CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE.to_string(),
                         err_details
                     ));
                 }
             },
             Err(err) => {
                 return Err(graphql_error_translate(
-                    constants::INTERNAL_ERROR.to_string(),
+                    constants::CREATION_INFORMATION_NOT_CREATED_ERROR_MESSAGE.to_string(),
                     err.message().to_string()
                 ));
             }
         }
         // Create new creation information row
-        let new_creation_information_row = new_creation_information
-            .create_new_creation_information_row();
+        let new_creation_information_row = CreationInformationRow::from_creation_information(new_creation_information);
         // Execute insertion
         match diesel::insert_into(schema::creation_information::table)
             .values(&new_creation_information_row)
@@ -76,7 +77,7 @@ impl CreationInformationService {
         // Return error or newly inserted row via UUID look up
         match CreationInformationService::get_creation_information_by_uuid(
             &conn,
-            &new_creation_information.uuid.to_string()
+            &new_creation_information_row.uuid
         ) {
             Ok(res) => {
                 match res {
@@ -84,7 +85,7 @@ impl CreationInformationService {
                     None => {
                         let error_details = format!(
                             "Couldn't find creation information '{}' after insert",
-                            new_creation_information.uuid.to_string()
+                            &new_creation_information_row.uuid
                         );
                         Err(graphql_error_translate(
                             constants::INTERNAL_ERROR.to_string(),
@@ -102,7 +103,7 @@ impl CreationInformationService {
         uuid: &String
     ) -> FieldResult<Option<models::database::CreationInformationRow>> {
         match dsl::creation_information
-            .filter(dsl::uuid.eq(uuid.clone()))
+            .filter(dsl::uuid.eq(uuid))
             .first::<models::database::CreationInformationRow>(conn) {
                 Ok(creation_information) => Ok(Some(creation_information)),
                 Err(err) => match err {
@@ -121,8 +122,111 @@ impl CreationInformationService {
         
         graphql_translate(
             select(
-                exists(dsl::creation_information.filter(dsl::uuid.eq(uuid.clone())))
+                exists(dsl::creation_information.filter(dsl::uuid.eq(uuid)))
             ).get_result::<bool>(conn)
         )
+    }
+
+    pub fn update_creation_information (
+        conn: &SqliteConnection,
+        uuid: &String,
+        update_creation_information_input: models::graphql::UpdateCreationInformationInput
+    ) -> FieldResult<models::database::CreationInformationRow> {
+        // Find the creation information row to update
+        let creation_information_row: models::database::CreationInformationRow;
+        match CreationInformationService::get_creation_information_by_uuid(
+            &conn,
+            &uuid
+        ) {
+            Ok(res) => {
+                match res {
+                    Some(found_creation_information_row) => {
+                        creation_information_row = found_creation_information_row;
+                    },
+                    None => {
+                        return Err(
+                            graphql_error_translate(
+                                constants::CREATION_INFORMATION_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                                format!("Creation information '{}' not found", uuid)
+                            )
+                        );
+                    }
+                }
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::CREATION_INFORMATION_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err.message().to_string()
+                ));
+            }
+        }
+        // Validate last updated by uuid
+        let last_updated_by_uuid: Uuid;
+        match Uuid::parse_str(&update_creation_information_input.last_updated_by_user_uuid) {
+            Ok(uuid) => {
+                last_updated_by_uuid = uuid;
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::CREATION_INFORMATION_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err.to_string()
+                ));
+            }
+        }
+        // Verify the given creator user uuid exists
+        match UserService::user_exists(
+            conn,
+            &last_updated_by_uuid.to_string()
+        ) {
+            Ok(user_exists) => {
+                if !user_exists {
+                    let err_details = format!(
+                        "The user '{}' does not exist",
+                        last_updated_by_uuid.to_string()
+                    );
+                    return Err(graphql_error_translate(
+                        constants::CREATION_INFORMATION_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                        err_details
+                    ));
+                }
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::CREATION_INFORMATION_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err.message().to_string()
+                ));
+            }
+        }
+        // Create creation information from creation information row
+        let mut creation_information: models::CreationInformation;
+        match models::CreationInformation::from_creation_information_row(creation_information_row) {
+            Ok(res) => {
+                creation_information = res;
+            },
+            Err(err) => {
+                return Err(graphql_error_translate(
+                    constants::CREATION_INFORMATION_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                    err
+                ));
+            }
+        }
+        // Update creation information
+        creation_information.set_last_updated(last_updated_by_uuid);
+        // Convert updated creation information back to creation information row
+        let updated_creation_information_row = CreationInformationRow::from_creation_information(creation_information);
+        // Execute Update
+        match diesel::update(dsl::creation_information.filter(dsl::uuid.eq(updated_creation_information_row.uuid.clone())))
+            .set((
+                dsl::last_updated_by_user_uuid.eq(updated_creation_information_row.last_updated_by_user_uuid.clone()),
+                dsl::last_updated_time.eq(updated_creation_information_row.last_updated_time.clone())
+            )).execute(conn) {
+                Ok(_) => Ok(updated_creation_information_row),
+                Err(err) => {
+                    Err(graphql_error_translate(
+                        constants::CREATION_INFORMATION_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                        err.to_string()
+                    ))
+                }
+            }
     }
 }

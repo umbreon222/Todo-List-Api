@@ -1,7 +1,7 @@
 use actix_web::web;
 
 // Authentication endpoint configuration callback
-pub fn auth_endpoints(config: &mut web::ServiceConfig) {
+pub fn auth_endpoints(_config: &mut web::ServiceConfig) {
     /*config
         .service(
             web::resource("/authorize")
