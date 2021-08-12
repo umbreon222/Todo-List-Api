@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::api::models::database::NewTaskRow;
+use crate::api::models::database::TaskRow;
 
 #[derive(FromPrimitive, ToPrimitive)]
 pub enum TaskPriority {
@@ -20,34 +20,72 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn create_new_task_row(&self) -> Result<NewTaskRow, String> {
-        // Convert tags to json
-        let json_tags: Option<String>;
-        match &self.tags {
-            Some(tags) => {
-                match serde_json::to_string(&tags) {
-                    Ok(res) => {
-                        json_tags = Some(res);
+    pub fn from_task_row(task_row: TaskRow) -> Result<Task, String> {
+        // Parse uuid
+        let uuid: Uuid;
+        match Uuid::parse_str(&task_row.uuid) {
+            Ok(res) => {
+                uuid = res;
+            },
+            Err(err) => {
+                return Err(err.to_string());
+            }
+        }
+        // Parse priority
+        let priority: TaskPriority;
+        match num_traits::FromPrimitive::from_i32(task_row.priority) {
+            Some(parsed_priority) => {
+                priority = parsed_priority
+            },
+            None => {
+                priority = TaskPriority::NORMAL
+            }
+        }
+        // Parse tags
+        let tags: Option<Vec<String>>;
+        match task_row.tags {
+            Some(tags_json_str) => {
+                match serde_json::from_str::<Vec<String>>(&tags_json_str) {
+                    Ok(parsed_tags) => {
+                        tags = Some(parsed_tags)
                     },
-                    Err(_) => {
-                        return Err(String::from("Error serializing tags to json"));
+                    Err(err) => {
+                        return Err(err.to_string());
                     }
                 }
             },
             None => {
-                json_tags = None;
+                tags = None
             }
         }
-        // Convert priority to primitive
-        let priority = num_traits::ToPrimitive::to_i32(&self.priority);
-        Ok(NewTaskRow {
-            uuid: self.uuid.to_string(),
-            content: self.content.clone(),
-            priority: priority.unwrap_or(1), // Default to normal
-            tags: json_tags,
-            is_complete: self.is_complete,
-            parent_list_uuid: self.parent_list_uuid.to_string(),
-            creation_information_uuid: self.creation_information_uuid.to_string()
+        // Parse parent list uuid
+        let parent_list_uuid: Uuid;
+        match Uuid::parse_str(&task_row.parent_list_uuid) {
+            Ok(res) => {
+                parent_list_uuid = res;
+            },
+            Err(err) => {
+                return Err(err.to_string());
+            }
+        }
+        // Parse creation information uuid
+        let creation_information_uuid: Uuid;
+        match Uuid::parse_str(&task_row.creation_information_uuid) {
+            Ok(res) => {
+                creation_information_uuid = res;
+            },
+            Err(err) => {
+                return Err(err.to_string());
+            }
+        }
+        Ok(Task {
+            uuid,
+            content: task_row.content,
+            priority,
+            tags,
+            is_complete: task_row.is_complete,
+            parent_list_uuid,
+            creation_information_uuid
         })
-    } 
+    }
 }

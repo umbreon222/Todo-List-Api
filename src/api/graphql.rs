@@ -10,8 +10,8 @@ use crate::api::models::graphql::{
     UpdateListInput,
     CreateTaskInput
 };
-use crate::api::models::database::{UserRow, ListRow, TaskRow};
-use crate::api::services::{UserService, ListService};
+use crate::api::models::database::{UserRow, ListRow, TaskRow, CreationInformationRow};
+use crate::api::services::{UserService, ListService, TaskService, CreationInformationService};
 
 // The root GraphQL query
 pub struct Query;
@@ -30,6 +30,18 @@ impl Query {
     pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<ListRow>> {
         let conn: &SqliteConnection = &context.pool.get().unwrap();
         ListService::all_lists(conn)
+    }
+
+    #[graphql(name = "allTasks")]
+    pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<TaskRow>> {
+        let conn: &SqliteConnection = &context.pool.get().unwrap();
+        TaskService::all_tasks(conn)
+    }
+
+    #[graphql(name = "allCreationInformation")]
+    pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<CreationInformationRow>> {
+        let conn: &SqliteConnection = &context.pool.get().unwrap();
+        CreationInformationService::all_creation_information(conn)
     }
 }
 

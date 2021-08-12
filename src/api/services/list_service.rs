@@ -5,7 +5,7 @@ use juniper::{FieldError, FieldResult};
 use crate::api::constants;
 use crate::api::{models, schema};
 use schema::lists::dsl;
-use crate::api::services::{CreationInformationService, TaskService, UserService};
+use crate::api::services::{CreationInformationService, TaskService};
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
 
 pub struct ListService;
@@ -27,7 +27,7 @@ impl ListService {
             new_creation_information_input
         ) {
             Ok(creation_information_row) => {
-                match creation_information_row.create_creation_information() {
+                match models::CreationInformation::from_creation_information_row(creation_information_row) {
                     Ok(res) => {
                         creation_information = res;
                     },
@@ -48,7 +48,7 @@ impl ListService {
         }
         // Parse create list input
         let new_list: models::List;
-        match create_list_input.create_list(&creation_information.uuid) {
+        match models::List::from_create_list_input(create_list_input, creation_information.uuid) {
             Ok(list) => {
                 new_list = list;
             },
@@ -174,18 +174,7 @@ impl ListService {
         }
         */
         // Create new list row
-        let new_list_row: models::database::NewListRow;
-        match new_list.create_new_list_row() {
-            Ok(res) => {
-                new_list_row = res;
-            },
-            Err(err) => {
-                return Err(graphql_error_translate(
-                    constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
-                    err
-                ));
-            }
-        }
+        let new_list_row = models::database::NewListRow::from_list(new_list);
         // Execute insertion
         match diesel::insert_into(schema::lists::table)
             .values(&new_list_row)
@@ -199,14 +188,14 @@ impl ListService {
                 }
             }
         // Return error or newly inserted row via UUID look up
-        match ListService::get_list_by_uuid(&conn, &new_list.uuid.to_string()) {
+        match ListService::get_list_by_uuid(&conn, &new_list_row.uuid) {
             Ok(res) => {
                 match res {
                     Some(found) => Ok(found),
                     None => {
                         let error_details = format!(
                             "Couldn't find list '{}' after insert",
-                            new_list.uuid.to_string()
+                            &new_list_row.uuid
                         );
                         Err(graphql_error_translate(
                             constants::INTERNAL_ERROR.to_string(),
@@ -276,8 +265,8 @@ impl ListService {
             }
         }
         // Create list from list row
-        let list: models::List;
-        match list_row.create_list() {
+        let mut list: models::List;
+        match models::List::from_list_row(list_row) {
             Ok(res) => {
                 list = res;
             },
@@ -289,21 +278,33 @@ impl ListService {
             }
         }
         // Update list
-        let updated_list: models::List;
-        match update_list_input.create_updated_list(list) {
-            Ok(res) => {
-                updated_list = res;
+        // Update title
+        match update_list_input.title {
+            Some(title) => {
+                list.title = title;
             },
-            Err(err) => {
-                return Err(graphql_error_translate(
-                    constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
-                    err
-                ));
-            }
+            None => {}
+        }
+        // Update description
+        list.description = update_list_input.description;
+        // Update color hex
+        match update_list_input.color_hex {
+            Some(color_hex) => {
+                match list.set_color_hex(color_hex) {
+                    Ok(_) => {},
+                    Err(err) => {
+                        return Err(graphql_error_translate(
+                            constants::LIST_NOT_UPDATED_ERROR_MESSAGE.to_string(),
+                            err
+                        ));
+                    }
+                }
+            },
+            None => {}
         }
         // Convert updated list back to list row
         let updated_list_row: models::database::ListRow;
-        match updated_list.create_updated_list_row(list_row) {
+        match models::database::ListRow::from_list(list) {
             Ok(res) => {
                 updated_list_row = res;
             },
@@ -319,11 +320,7 @@ impl ListService {
             .set((
                 dsl::title.eq(updated_list_row.title.clone()),
                 dsl::description.eq(updated_list_row.description.clone()),
-                dsl::color_hex.eq(updated_list_row.color_hex.clone()),
-                dsl::task_uuids.eq(updated_list_row.task_uuids.clone()),
-                dsl::parent_list_uuid.eq(updated_list_row.parent_list_uuid.clone()),
-                dsl::sub_list_uuids.eq(updated_list_row.sub_list_uuids.clone()),
-                dsl::shared_with_user_uuids.eq(updated_list_row.shared_with_user_uuids.clone())
+                dsl::color_hex.eq(updated_list_row.color_hex.clone())
             )).execute(conn) {
                 Ok(_) => {},
                 Err(err) => {
@@ -383,7 +380,7 @@ impl ListService {
         }
         // Create list from list row
         let mut updated_list: models::List;
-        match list_row.create_list() {
+        match models::List::from_list_row(list_row) {
             Ok(res) => {
                 updated_list = res;
             },
@@ -410,7 +407,7 @@ impl ListService {
             }
         }
         // Create task from task row
-        match created_task_row.create_task() {
+        match models::Task::from_task_row(created_task_row.clone()) {
             Ok(task) => {
                 let mut updated_task_uuids = updated_list.task_uuids.clone().unwrap_or_default();
                 updated_task_uuids.push(task.uuid.clone());
@@ -425,7 +422,7 @@ impl ListService {
         }
         // Convert updated list back to list row
         let updated_list_row: models::database::ListRow;
-        match updated_list.create_updated_list_row(list_row) {
+        match models::database::ListRow::from_list(updated_list) {
             Ok(res) => {
                 updated_list_row = res;
             },

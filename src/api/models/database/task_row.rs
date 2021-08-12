@@ -1,10 +1,10 @@
-use uuid::Uuid;
 use juniper::GraphQLObject;
 
-use crate::api::models::{Task, TaskPriority};
+use crate::api::models::Task;
+use crate::api::schema::*;
 
-#[derive(GraphQLObject)]
-#[derive(Queryable)]
+#[derive(GraphQLObject, Queryable, Insertable, Clone)]
+#[table_name = "tasks"]
 pub struct TaskRow {
     pub uuid: String,
     pub content: String,
@@ -16,72 +16,34 @@ pub struct TaskRow {
 }
 
 impl TaskRow {
-    pub fn create_task(&self) -> Result<Task, String> {
-        // Parse uuid
-        let uuid: Uuid;
-        match Uuid::parse_str(&self.uuid) {
-            Ok(res) => {
-                uuid = res;
-            },
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        }
-        // Parse priority
-        let priority: TaskPriority;
-        match num_traits::FromPrimitive::from_i32(self.priority) {
-            Some(parsed_priority) => {
-                priority = parsed_priority
-            },
-            None => {
-                priority = TaskPriority::NORMAL
-            }
-        }
-        // Parse tags
-        let tags: Option<Vec<String>>;
-        match &self.tags {
-            Some(tags_json_str) => {
-                match serde_json::from_str::<Vec<String>>(tags_json_str) {
-                    Ok(parsed_tags) => {
-                        tags = Some(parsed_tags)
+    pub fn from_task(task: Task) -> Result<TaskRow, String> {
+        // Convert tags to json
+        let json_tags: Option<String>;
+        match task.tags {
+            Some(tags) => {
+                match serde_json::to_string(&tags) {
+                    Ok(res) => {
+                        json_tags = Some(res);
                     },
-                    Err(err) => {
-                        return Err(err.to_string());
+                    Err(_) => {
+                        return Err(String::from("Error serializing tags to json"));
                     }
                 }
             },
             None => {
-                tags = None
+                json_tags = None;
             }
         }
-        // Parse parent list uuid
-        let parent_list_uuid: Uuid;
-        match Uuid::parse_str(&self.parent_list_uuid) {
-            Ok(res) => {
-                parent_list_uuid = res;
-            },
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        }
-        // Parse creation information uuid
-        let creation_information_uuid: Uuid;
-        match Uuid::parse_str(&self.creation_information_uuid) {
-            Ok(res) => {
-                creation_information_uuid = res;
-            },
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        }
-        Ok(Task {
-            uuid,
-            content: self.content.clone(),
-            priority,
-            tags,
-            is_complete: self.is_complete,
-            parent_list_uuid,
-            creation_information_uuid
+        // Convert priority to primitive
+        let priority = num_traits::ToPrimitive::to_i32(&task.priority);
+        Ok(TaskRow {
+            uuid: task.uuid.to_string(),
+            content: task.content,
+            priority: priority.unwrap_or(1), // Default to normal
+            tags: json_tags,
+            is_complete: task.is_complete,
+            parent_list_uuid: task.parent_list_uuid.to_string(),
+            creation_information_uuid: task.creation_information_uuid.to_string()
         })
     }
 }

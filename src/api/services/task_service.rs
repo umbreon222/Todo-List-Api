@@ -27,7 +27,7 @@ impl TaskService {
             create_creation_information_input
         ) {
             Ok(creation_information_row) => {
-                match creation_information_row.create_creation_information() {
+                match models::CreationInformation::from_creation_information_row(creation_information_row) {
                     Ok(res) => {
                         creation_information = res;
                     },
@@ -55,8 +55,8 @@ impl TaskService {
             }
         }
         // Create new task row
-        let new_task_row: models::database::NewTaskRow;
-        match new_task.create_new_task_row() {
+        let new_task_row: models::database::TaskRow;
+        match models::database::TaskRow::from_task(new_task) {
             Ok(task_row) => {
                 new_task_row = task_row;
             },
@@ -80,14 +80,14 @@ impl TaskService {
                 }
             }
         // Return error or newly inserted row via UUID look up
-        match TaskService::get_task_by_uuid(&conn, &new_task.uuid.to_string()) {
+        match TaskService::get_task_by_uuid(&conn, &new_task_row.uuid) {
             Ok(res) => {
                 match res {
                     Some(found) => Ok(found),
                     None => {
                         let error_details = format!(
                             "Couldn't find task '{}' after insert",
-                            new_task.uuid.to_string()
+                            &new_task_row.uuid
                         );
                         return Err(graphql_error_translate(
                             constants::INTERNAL_ERROR.to_string(),
