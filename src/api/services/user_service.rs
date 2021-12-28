@@ -1,4 +1,3 @@
-use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{FieldError, FieldResult};
 
@@ -8,7 +7,7 @@ use schema::users::dsl;
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
 
 pub struct UserService<'a> {
-    pub connection: &'a SqliteConnection,
+    connection: &'a SqliteConnection,
 }
 
 impl<'a> UserService<'a> {

@@ -39,13 +39,7 @@ async fn graphql(
     data: web::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
     // Instantiate a context
-    let ctx = GraphQLContext {
-        pool: pool.get_ref().to_owned(),
-        creation_information_service: CreationInformationService::new(&pool.get().unwrap()),
-        user_service: UserService::new(&pool.get().unwrap()),
-        task_service: TaskService::new(&pool.get().unwrap()),
-        list_service: ListService::new(&pool.get().unwrap())
-    };
+    let ctx = GraphQLContext { pool: pool.get_ref().to_owned() };
 
     // Handle the incoming request and return a string result (or error)
     let res = web::block(move || {

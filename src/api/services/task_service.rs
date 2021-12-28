@@ -1,20 +1,20 @@
-use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{FieldError, FieldResult};
 
 use crate::api::constants;
 use crate::api::{models, schema};
 use schema::tasks::dsl;
-use crate::api::services::{CreationInformationService, UserService};
+use crate::api::services::CreationInformationService;
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
 
 pub struct TaskService<'a> {
-    pub connection: &'a SqliteConnection,
+    connection: &'a SqliteConnection,
+    creation_information_service: &'a CreationInformationService<'a>,
 }
 
 impl<'a> TaskService<'a> {
-    pub fn new(connection: &'a SqliteConnection) -> Self {
-        TaskService { connection }
+    pub fn new(connection: &'a SqliteConnection, creation_information_service: &'a CreationInformationService) -> Self {
+        TaskService { connection, creation_information_service }
     }
 
     pub fn all_tasks(&self) -> FieldResult<Vec<models::database::TaskRow>> {
@@ -25,13 +25,10 @@ impl<'a> TaskService<'a> {
         &self,
         create_creation_information_input: models::graphql::CreateCreationInformationInput,
         create_task_input: models::graphql::CreateTaskInput,
-        creation_information_service: &CreationInformationService,
-        user_service: &UserService
     ) -> FieldResult<models::database::TaskRow> {
         // Use creation information service to create a creation information object in db
         let creation_information: models::CreationInformation;
-        match creation_information_service.create_creation_information(
-            user_service,
+        match self.creation_information_service.create_creation_information(
             create_creation_information_input
         ) {
             Ok(creation_information_row) => {

@@ -1,20 +1,25 @@
-use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{FieldError, FieldResult};
 
 use crate::api::constants;
 use crate::api::{models, schema};
 use schema::lists::dsl;
-use crate::api::services::{CreationInformationService, UserService, TaskService};
+use crate::api::services::{CreationInformationService, TaskService};
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
 
 pub struct ListService<'a> {
-    connection: &'a SqliteConnection
+    connection: &'a SqliteConnection,
+    creation_information_service: &'a CreationInformationService<'a>,
+    task_service: &'a TaskService<'a>
 }
 
 impl<'a> ListService<'a> {
-    pub fn new(connection: &'a SqliteConnection) -> Self {
-        Self { connection }
+    pub fn new(
+        connection: &'a SqliteConnection,
+        creation_information_service: &'a CreationInformationService<'a>,
+        task_service: &'a TaskService<'a>
+    ) -> Self {
+        Self { connection, creation_information_service, task_service }
     }
 
     pub fn all_lists(&self) -> FieldResult<Vec<models::database::ListRow>> {
@@ -23,17 +28,12 @@ impl<'a> ListService<'a> {
 
     pub fn create_list(
         &self,
-        creation_information_service: &CreationInformationService,
-        user_service: &UserService,
         new_creation_information_input: models::graphql::CreateCreationInformationInput,
         create_list_input: models::graphql::CreateListInput
     ) -> FieldResult<models::database::ListRow> {
         // Create creation information
         let creation_information: models::CreationInformation;
-        match creation_information_service.create_creation_information(
-            user_service,
-            new_creation_information_input
-        ) {
+        match self.creation_information_service.create_creation_information(new_creation_information_input) {
             Ok(creation_information_row) => {
                 match models::CreationInformation::from_creation_information_row(creation_information_row) {
                     Ok(res) => {
@@ -244,8 +244,6 @@ impl<'a> ListService<'a> {
 
     pub fn update_list(
         &self,
-        creation_information_service: &CreationInformationService,
-        user_service: &UserService,
         update_creation_information_input: models::graphql::UpdateCreationInformationInput,
         update_list_input: models::graphql::UpdateListInput
     ) -> FieldResult<models::database::ListRow> {
@@ -341,10 +339,9 @@ impl<'a> ListService<'a> {
                 }
             }
         // Update creation information and return updated list row on success
-        return match creation_information_service.update_creation_information(
+        return match self.creation_information_service.update_creation_information(
             &updated_list_row.creation_information_uuid,
             update_creation_information_input,
-            user_service
         ) {
             Ok(_res) => {
                 Ok(updated_list_row)
@@ -360,9 +357,6 @@ impl<'a> ListService<'a> {
 
     pub fn add_new_task(
         &self,
-        creation_information_service: &CreationInformationService,
-        user_service: &UserService,
-        task_service: &TaskService,
         create_creation_information_input: models::graphql::CreateCreationInformationInput,
         create_task_input: models::graphql::CreateTaskInput
     ) -> FieldResult<models::database::TaskRow> {
@@ -408,7 +402,7 @@ impl<'a> ListService<'a> {
         // Grab the uuid of the user who is updating the task before the input object is swallowed
         let last_updated_by_user_uuid = create_creation_information_input.creator_user_uuid.clone();
         let created_task_row: models::database::TaskRow;
-        match task_service.create_task(create_creation_information_input, create_task_input, creation_information_service, user_service) {
+        match self.task_service.create_task(create_creation_information_input, create_task_input) {
             Ok(task_row) => {
                 created_task_row = task_row;
             },
@@ -464,10 +458,9 @@ impl<'a> ListService<'a> {
             last_updated_by_user_uuid,
         };
         // Update creation information and return updated list row on success
-        match creation_information_service.update_creation_information(
+        match self.creation_information_service.update_creation_information(
             &updated_list_row.creation_information_uuid,
-            update_creation_information_input,
-            user_service
+            update_creation_information_input
         ) {
             Ok(_res) => {
                 return Ok(created_task_row);

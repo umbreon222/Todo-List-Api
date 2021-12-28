@@ -1,5 +1,4 @@
 use uuid::Uuid;
-use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use juniper::{FieldError, FieldResult};
 
@@ -11,12 +10,13 @@ use crate::api::services::utilities::{graphql_translate, graphql_error_translate
 use crate::api::models::database::CreationInformationRow;
 
 pub struct CreationInformationService<'a> {
-    pub connection: &'a SqliteConnection,
+    connection: &'a SqliteConnection,
+    user_service: &'a UserService<'a>,
 }
 
     impl<'a> CreationInformationService<'a> {
-        pub fn new(connection: &'a SqliteConnection) -> Self {
-            Self { connection }
+        pub fn new(connection: &'a SqliteConnection, user_service: &'a UserService) -> Self {
+            Self { connection, user_service }
         }
 
     pub fn all_creation_information(
@@ -27,7 +27,6 @@ pub struct CreationInformationService<'a> {
 
     pub fn create_creation_information(
         &self,
-        user_service: &UserService,
         create_creation_information_input: models::graphql::CreateCreationInformationInput
     ) -> FieldResult<models::database::CreationInformationRow> {
         // Parse create creation information input
@@ -44,7 +43,7 @@ pub struct CreationInformationService<'a> {
             }
         }
         // Verify the given creator user uuid exists
-        match user_service.user_exists(
+        match self.user_service.user_exists(
             &new_creation_information.creator_user_uuid.to_string()
         ) {
             Ok(user_exists) => {
@@ -134,7 +133,6 @@ pub struct CreationInformationService<'a> {
         &self,
         uuid: &String,
         update_creation_information_input: models::graphql::UpdateCreationInformationInput,
-        user_service: &UserService
     ) -> FieldResult<models::database::CreationInformationRow> {
         // Find the creation information row to update
         let creation_information_row: models::database::CreationInformationRow;
@@ -175,7 +173,7 @@ pub struct CreationInformationService<'a> {
             }
         }
         // Verify the given creator user uuid exists
-        match user_service.user_exists(&last_updated_by_uuid.to_string()) {
+        match self.user_service.user_exists(&last_updated_by_uuid.to_string()) {
             Ok(user_exists) => {
                 if !user_exists {
                     let err_details = format!(
