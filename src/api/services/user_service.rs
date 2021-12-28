@@ -7,16 +7,22 @@ use crate::api::{models, schema};
 use schema::users::dsl;
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
 
-pub struct UserService;
+pub struct UserService<'a> {
+    pub connection: &'a SqliteConnection,
+}
 
-impl UserService {
-    pub fn all_users(conn: &SqliteConnection) -> FieldResult<Vec<models::database::UserRow>> {
-        graphql_translate(dsl::users.load::<models::database::UserRow>(conn))
+impl<'a> UserService<'a> {
+    pub fn new(connection: &'a SqliteConnection) -> Self {
+        Self { connection }
+    }
+
+    pub fn all_users(&self) -> FieldResult<Vec<models::database::UserRow>> {
+        graphql_translate(dsl::users.load::<models::database::UserRow>(self.connection))
     }
 
     pub fn create_user(
-        conn: &SqliteConnection,
-        create_user_input: models::graphql::CreateUserInput
+        &self,
+        create_user_input: models::graphql::CreateUserInput,
     ) -> FieldResult<models::database::UserRow> {
         // Parse create user input
         let new_user = models::User::from_create_user_input(create_user_input);
@@ -25,7 +31,7 @@ impl UserService {
         // Execute insertion
         match diesel::insert_into(schema::users::table)
             .values(&new_user_row)
-            .execute(conn) {
+            .execute(self.connection) {
                 Ok(_) => {},
                 Err(err) => {
                     return Err(graphql_error_translate(
@@ -35,7 +41,7 @@ impl UserService {
                 }
             }
         // Return error or newly inserted row via UUID look up
-        match UserService::get_user_by_uuid(&conn, &new_user_row.uuid) {
+        match self.get_user_by_uuid(&new_user_row.uuid) {
             Ok(res) => {
                 match res {
                     Some(found) => Ok(found),
@@ -57,10 +63,10 @@ impl UserService {
     }
 
     pub fn get_user_by_uuid(
-        conn: &SqliteConnection,
+        &self,
         uuid: &String
     ) -> FieldResult<Option<models::database::UserRow>> {
-        match dsl::users.filter(dsl::uuid.eq(uuid)).first::<models::database::UserRow>(conn) {
+        match dsl::users.filter(dsl::uuid.eq(uuid)).first::<models::database::UserRow>(self.connection) {
             Ok(user) => Ok(Some(user)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),
@@ -70,7 +76,7 @@ impl UserService {
     }
 
     pub fn user_exists(
-        conn: &SqliteConnection,
+        &self,
         uuid: &String
     ) -> FieldResult<bool> {
         use diesel::select;
@@ -79,7 +85,7 @@ impl UserService {
         return graphql_translate(
             select(
                 exists(dsl::users.filter(dsl::uuid.eq(uuid)))
-            ).get_result::<bool>(conn)
+            ).get_result::<bool>(self.connection)
         );
     }
 }

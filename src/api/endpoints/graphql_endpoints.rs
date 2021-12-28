@@ -6,6 +6,12 @@ use actix_web::{web, Error, HttpResponse};
 use crate::api::db::SqlitePool;
 use crate::api::graphql::{create_schema, Schema};
 use crate::api::context::GraphQLContext;
+use crate::api::services::{
+    CreationInformationService,
+    UserService,
+    TaskService,
+    ListService
+};
 
 // GraphQL endpoint configuration callback
 pub fn graphql_endpoints(config: &mut web::ServiceConfig) {
@@ -34,7 +40,11 @@ async fn graphql(
 ) -> Result<HttpResponse, Error> {
     // Instantiate a context
     let ctx = GraphQLContext {
-        pool: pool.get_ref().to_owned()
+        pool: pool.get_ref().to_owned(),
+        creation_information_service: CreationInformationService::new(&pool.get().unwrap()),
+        user_service: UserService::new(&pool.get().unwrap()),
+        task_service: TaskService::new(&pool.get().unwrap()),
+        list_service: ListService::new(&pool.get().unwrap())
     };
 
     // Handle the incoming request and return a string result (or error)

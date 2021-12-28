@@ -5,25 +5,33 @@ use juniper::{FieldError, FieldResult};
 use crate::api::constants;
 use crate::api::{models, schema};
 use schema::lists::dsl;
-use crate::api::services::{CreationInformationService, TaskService};
+use crate::api::services::{CreationInformationService, UserService, TaskService};
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
 
-pub struct ListService;
+pub struct ListService<'a> {
+    connection: &'a SqliteConnection
+}
 
-impl ListService {
-    pub fn all_lists(conn: &SqliteConnection) -> FieldResult<Vec<models::database::ListRow>> {
-        graphql_translate(dsl::lists.load::<models::database::ListRow>(conn))
+impl<'a> ListService<'a> {
+    pub fn new(connection: &'a SqliteConnection) -> Self {
+        Self { connection }
+    }
+
+    pub fn all_lists(&self) -> FieldResult<Vec<models::database::ListRow>> {
+        graphql_translate(dsl::lists.load::<models::database::ListRow>(self.connection))
     }
 
     pub fn create_list(
-        conn: &SqliteConnection,
+        &self,
+        creation_information_service: &CreationInformationService,
+        user_service: &UserService,
         new_creation_information_input: models::graphql::CreateCreationInformationInput,
         create_list_input: models::graphql::CreateListInput
     ) -> FieldResult<models::database::ListRow> {
         // Create creation information
         let creation_information: models::CreationInformation;
-        match CreationInformationService::create_creation_information(
-            conn,
+        match creation_information_service.create_creation_information(
+            user_service,
             new_creation_information_input
         ) {
             Ok(creation_information_row) => {
@@ -178,7 +186,7 @@ impl ListService {
         // Execute insertion
         match diesel::insert_into(schema::lists::table)
             .values(&new_list_row)
-            .execute(conn) {
+            .execute(self.connection) {
                 Ok(_) => {},
                 Err(err) => {
                     return Err(graphql_error_translate(
@@ -188,7 +196,7 @@ impl ListService {
                 }
             }
         // Return error or newly inserted row via UUID look up
-        match ListService::get_list_by_uuid(&conn, &new_list_row.uuid) {
+        match self.get_list_by_uuid(&new_list_row.uuid) {
             Ok(res) => {
                 match res {
                     Some(found) => Ok(found),
@@ -209,10 +217,10 @@ impl ListService {
     }
 
     pub fn get_list_by_uuid(
-        conn: &SqliteConnection,
+        &self,
         uuid: &String
     ) -> FieldResult<Option<models::database::ListRow>> {
-        match dsl::lists.filter(dsl::uuid.eq(uuid)).first::<models::database::ListRow>(conn) {
+        match dsl::lists.filter(dsl::uuid.eq(uuid)).first::<models::database::ListRow>(self.connection) {
             Ok(list_row) => Ok(Some(list_row)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),
@@ -222,7 +230,7 @@ impl ListService {
     }
 
     pub fn list_exists(
-        conn: &SqliteConnection,
+        &self,
         uuid: &String
     ) -> FieldResult<bool> {
         use diesel::select;
@@ -230,18 +238,20 @@ impl ListService {
         
         return graphql_translate(
             select(exists(dsl::lists.filter(dsl::uuid.eq(uuid))))
-                .get_result::<bool>(conn)
+                .get_result::<bool>(self.connection)
         );
     }
 
     pub fn update_list(
-        conn: &SqliteConnection,
+        &self,
+        creation_information_service: &CreationInformationService,
+        user_service: &UserService,
         update_creation_information_input: models::graphql::UpdateCreationInformationInput,
         update_list_input: models::graphql::UpdateListInput
     ) -> FieldResult<models::database::ListRow> {
         // Find the list row to update
         let list_row: models::database::ListRow;
-        match ListService::get_list_by_uuid(&conn, &update_list_input.uuid) {
+        match self.get_list_by_uuid(&update_list_input.uuid) {
             Ok(result) => {
                 match result {
                     Some(found_list_row) => {
@@ -321,7 +331,7 @@ impl ListService {
                 dsl::title.eq(updated_list_row.title.clone()),
                 dsl::description.eq(updated_list_row.description.clone()),
                 dsl::color_hex.eq(updated_list_row.color_hex.clone())
-            )).execute(conn) {
+            )).execute(self.connection) {
                 Ok(_) => {},
                 Err(err) => {
                     return Err(graphql_error_translate(
@@ -331,10 +341,10 @@ impl ListService {
                 }
             }
         // Update creation information and return updated list row on success
-        return match CreationInformationService::update_creation_information(
-            conn,
+        return match creation_information_service.update_creation_information(
             &updated_list_row.creation_information_uuid,
-            update_creation_information_input
+            update_creation_information_input,
+            user_service
         ) {
             Ok(_res) => {
                 Ok(updated_list_row)
@@ -349,13 +359,16 @@ impl ListService {
     }
 
     pub fn add_new_task(
-        conn: &SqliteConnection,
+        &self,
+        creation_information_service: &CreationInformationService,
+        user_service: &UserService,
+        task_service: &TaskService,
         create_creation_information_input: models::graphql::CreateCreationInformationInput,
         create_task_input: models::graphql::CreateTaskInput
     ) -> FieldResult<models::database::TaskRow> {
         // Find the list row to update
         let list_row: models::database::ListRow;
-        match ListService::get_list_by_uuid(&conn, &create_task_input.parent_list_uuid) {
+        match self.get_list_by_uuid(&create_task_input.parent_list_uuid) {
             Ok(result) => {
                 match result {
                     Some(found_list_row) => {
@@ -395,7 +408,7 @@ impl ListService {
         // Grab the uuid of the user who is updating the task before the input object is swallowed
         let last_updated_by_user_uuid = create_creation_information_input.creator_user_uuid.clone();
         let created_task_row: models::database::TaskRow;
-        match TaskService::create_task(conn, create_creation_information_input, create_task_input) {
+        match task_service.create_task(create_creation_information_input, create_task_input, creation_information_service, user_service) {
             Ok(task_row) => {
                 created_task_row = task_row;
             },
@@ -436,7 +449,7 @@ impl ListService {
         // Execute Update
         match diesel::update(dsl::lists.filter(dsl::uuid.eq(updated_list_row.uuid.clone())))
         .set(dsl::task_uuids.eq(updated_list_row.task_uuids.clone()))
-        .execute(conn) {
+        .execute(self.connection) {
             Ok(_) => {},
             Err(err) => {
                 return Err(graphql_error_translate(
@@ -451,10 +464,10 @@ impl ListService {
             last_updated_by_user_uuid,
         };
         // Update creation information and return updated list row on success
-        match CreationInformationService::update_creation_information(
-            conn,
+        match creation_information_service.update_creation_information(
             &updated_list_row.creation_information_uuid,
-            update_creation_information_input
+            update_creation_information_input,
+            user_service
         ) {
             Ok(_res) => {
                 return Ok(created_task_row);
@@ -465,6 +478,124 @@ impl ListService {
                     err.message().to_string()
                 )); 
             }
+        }
+    }
+
+    pub fn validate_list(&self,
+        user_service: &UserService,
+        task_service: &TaskService,
+        list: &models::List
+    ) -> Result<(), String> {
+        // Verify the given task uuids exist
+        match list.task_uuids {
+            Some(task_uuids) => {
+                for task_uuid in task_uuids {
+                    // Verify that the task uuids exist
+                    match task_service.task_exists(&task_uuid.to_string()) {
+                        Ok(task_exists) => {
+                            if !task_exists {
+                                let error_details: String = format!(
+                                    "The task '{}' does not exist",
+                                    task_uuid.to_string()
+                                );
+                                return Err(graphql_error_translate(
+                                    constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                                    error_details
+                                ));
+                            }
+                        },
+                        Err(err) => {
+                            return Err(graphql_error_translate(
+                                constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                                err.message().to_string()
+                            ));
+                        }
+                    }
+                }
+            },
+            None => {}
+        }
+        // Verify the parent list uuid exists
+        match list.parent_list_uuid {
+            Some(list_uuid) => {
+                match self.list_exists(&list_uuid.to_string()) {
+                    Ok(list_exists) => {
+                        if !list_exists {
+                            let err_details = format!(
+                                "The parent list '{}' does not exist",
+                                list_uuid.to_string()
+                            );
+                            return Err(graphql_error_translate(
+                                constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                                err_details
+                            ));
+                        }
+                    },
+                    Err(err) => {
+                        return Err(graphql_error_translate(
+                            constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                            err.message().to_string()
+                        ));
+                    }
+                }
+            },
+            None => {}
+        }
+        // Verify the sub list uuids exist
+        match list.sub_list_uuids {
+            Some(sub_list_uuids) => {
+                for sub_list_uuid in sub_list_uuids {
+                    match self.list_exists(&sub_list_uuid.to_string()) {
+                        Ok(list_exists) => {
+                            if !list_exists {
+                                let err_details = format!(
+                                    "The sub list '{}' does not exist",
+                                    sub_list_uuid.to_string()
+                                );
+                                return Err(graphql_error_translate(
+                                    constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                                    err_details
+                                ));
+                            }
+                        },
+                        Err(err) => {
+                            return Err(graphql_error_translate(
+                                constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                                err.message().to_string()
+                            ));
+                        }
+                    }
+                }
+            },
+            None => {}
+        }
+        // Verify the shared with user uuids exist
+        match list.shared_with_user_uuids {
+            Some(shared_with_user_uuids) => {
+                for shared_with_user_uuid in shared_with_user_uuids {
+                    match user_service.user_exists(&shared_with_user_uuid.to_string()) {
+                        Ok(user_exists) => {
+                            if !user_exists {
+                                let err_details = format!(
+                                    "The user '{}' does not exist",
+                                    shared_with_user_uuid.to_string()
+                                );
+                                return Err(graphql_error_translate(
+                                    constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                                    err_details
+                                ));
+                            }
+                        },
+                        Err(err) => {
+                            return Err(graphql_error_translate(
+                                constants::LIST_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                                err.message().to_string()
+                            ));
+                        }
+                    }
+                }
+            },
+            None => {}
         }
     }
 }

@@ -5,25 +5,33 @@ use juniper::{FieldError, FieldResult};
 use crate::api::constants;
 use crate::api::{models, schema};
 use schema::tasks::dsl;
-use crate::api::services::CreationInformationService;
+use crate::api::services::{CreationInformationService, UserService};
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
 
-pub struct TaskService;
+pub struct TaskService<'a> {
+    pub connection: &'a SqliteConnection,
+}
 
-impl TaskService {
-    pub fn all_tasks(conn: &SqliteConnection) -> FieldResult<Vec<models::database::TaskRow>> {
-        graphql_translate(dsl::tasks.load::<models::database::TaskRow>(conn))
+impl<'a> TaskService<'a> {
+    pub fn new(connection: &'a SqliteConnection) -> Self {
+        TaskService { connection }
+    }
+
+    pub fn all_tasks(&self) -> FieldResult<Vec<models::database::TaskRow>> {
+        graphql_translate(dsl::tasks.load::<models::database::TaskRow>(self.connection))
     }
 
     pub fn create_task(
-        conn: &SqliteConnection,
+        &self,
         create_creation_information_input: models::graphql::CreateCreationInformationInput,
-        create_task_input: models::graphql::CreateTaskInput
+        create_task_input: models::graphql::CreateTaskInput,
+        creation_information_service: &CreationInformationService,
+        user_service: &UserService
     ) -> FieldResult<models::database::TaskRow> {
         // Use creation information service to create a creation information object in db
         let creation_information: models::CreationInformation;
-        match CreationInformationService::create_creation_information(
-            conn,
+        match creation_information_service.create_creation_information(
+            user_service,
             create_creation_information_input
         ) {
             Ok(creation_information_row) => {
@@ -70,7 +78,7 @@ impl TaskService {
         // Execute insertion
         match diesel::insert_into(schema::tasks::table)
             .values(&new_task_row)
-            .execute(conn) {
+            .execute(self.connection) {
                 Ok(_) => {},
                 Err(err) => {
                     return Err(graphql_error_translate(
@@ -80,7 +88,7 @@ impl TaskService {
                 }
             }
         // Return error or newly inserted row via UUID look up
-        match TaskService::get_task_by_uuid(&conn, &new_task_row.uuid) {
+        match self.get_task_by_uuid(&new_task_row.uuid) {
             Ok(res) => {
                 match res {
                     Some(found) => Ok(found),
@@ -101,10 +109,10 @@ impl TaskService {
     }
 
     pub fn get_task_by_uuid(
-        conn: &SqliteConnection,
+        &self,
         uuid: &String
     ) -> FieldResult<Option<models::database::TaskRow>> {
-        match dsl::tasks.filter(dsl::uuid.eq(uuid)).first::<models::database::TaskRow>(conn) {
+        match dsl::tasks.filter(dsl::uuid.eq(uuid)).first::<models::database::TaskRow>(self.connection) {
             Ok(task) => Ok(Some(task)),
             Err(err) => match err {
                 diesel::result::Error::NotFound => Ok(None),
@@ -114,7 +122,7 @@ impl TaskService {
     }
 
     pub fn task_exists(
-        conn: &SqliteConnection,
+        &self,
         uuid: &String
     ) -> FieldResult<bool> {
         use diesel::select;
@@ -123,7 +131,7 @@ impl TaskService {
         return graphql_translate(
             select(
                 exists(dsl::tasks.filter(dsl::uuid.eq(uuid)))
-            ).get_result::<bool>(conn)
+            ).get_result::<bool>(self.connection)
         );
     }
 }

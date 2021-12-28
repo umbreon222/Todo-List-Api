@@ -1,4 +1,3 @@
-use diesel::sqlite::SqliteConnection;
 use juniper::{FieldResult, RootNode};
 
 use crate::api::context::GraphQLContext;
@@ -10,8 +9,12 @@ use crate::api::models::graphql::{
     UpdateListInput,
     CreateTaskInput
 };
-use crate::api::models::database::{UserRow, ListRow, TaskRow, CreationInformationRow};
-use crate::api::services::{UserService, ListService, TaskService, CreationInformationService};
+use crate::api::models::database::{
+    UserRow,
+    ListRow,
+    TaskRow,
+    CreationInformationRow
+};
 
 // The root GraphQL query
 pub struct Query;
@@ -22,26 +25,22 @@ impl Query {
     pub fn all_users(context: &GraphQLContext) -> FieldResult<Vec<UserRow>> {
         // TODO: pass the GraphQLContext into the querying functions rather
         // than a SqliteConnection (for brevity's sake)
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        UserService::all_users(conn)
+        context.user_service.all_users()
     }
 
     #[graphql(name = "allLists")]
     pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<ListRow>> {
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        ListService::all_lists(conn)
+        context.list_service.all_lists()
     }
 
     #[graphql(name = "allTasks")]
     pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<TaskRow>> {
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        TaskService::all_tasks(conn)
+        context.task_service.all_tasks()
     }
 
     #[graphql(name = "allCreationInformation")]
     pub fn all_lists(context: &GraphQLContext) -> FieldResult<Vec<CreationInformationRow>> {
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        CreationInformationService::all_creation_information(conn)
+        context.creation_information_service.all_creation_information()
     }
 }
 
@@ -56,8 +55,7 @@ impl Mutation {
         context: &GraphQLContext,
         input: CreateUserInput,
     ) -> FieldResult<UserRow> {
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        UserService::create_user(conn, input)
+        context.user_service.create_user(input)
     }
 
     // List
@@ -67,8 +65,7 @@ impl Mutation {
         creation_information_input: CreateCreationInformationInput,
         list_input: CreateListInput
     ) -> FieldResult<ListRow> {
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        ListService::create_list(conn, creation_information_input, list_input )
+        context.list_service.create_list(&context.creation_information_service, &context.user_service, creation_information_input, list_input)
     }
 
     #[graphql(name = "updateList")]
@@ -77,8 +74,7 @@ impl Mutation {
         update_creation_information_input: UpdateCreationInformationInput,
         update_list_input: UpdateListInput
     ) -> FieldResult<ListRow> {
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        ListService::update_list(conn, update_creation_information_input, update_list_input)
+        context.list_service.update_list(&context.creation_information_service, &context.user_service, update_creation_information_input, update_list_input)
     }
 
     #[graphql(name = "addNewTask")]
@@ -87,8 +83,7 @@ impl Mutation {
         creation_information_input: CreateCreationInformationInput,
         create_task_input: CreateTaskInput
     ) -> FieldResult<TaskRow> {
-        let conn: &SqliteConnection = &context.pool.get().unwrap();
-        ListService::add_new_task(conn, creation_information_input, create_task_input)
+        context.list_service.add_new_task(&context.creation_information_service, &context.user_service, &context.task_service, creation_information_input, create_task_input)
     }
 }
 

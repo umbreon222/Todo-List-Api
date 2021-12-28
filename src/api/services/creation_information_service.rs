@@ -10,17 +10,24 @@ use crate::api::services::UserService;
 use crate::api::services::utilities::{graphql_translate, graphql_error_translate};
 use crate::api::models::database::CreationInformationRow;
 
-pub struct CreationInformationService;
+pub struct CreationInformationService<'a> {
+    pub connection: &'a SqliteConnection,
+}
 
-impl CreationInformationService {
+    impl<'a> CreationInformationService<'a> {
+        pub fn new(connection: &'a SqliteConnection) -> Self {
+            Self { connection }
+        }
+
     pub fn all_creation_information(
-        conn: &SqliteConnection
+        &self
     ) -> FieldResult<Vec<models::database::CreationInformationRow>> {
-        graphql_translate(dsl::creation_information.load::<models::database::CreationInformationRow>(conn))
+        graphql_translate(dsl::creation_information.load::<models::database::CreationInformationRow>(self.connection))
     }
 
     pub fn create_creation_information(
-        conn: &SqliteConnection,
+        &self,
+        user_service: &UserService,
         create_creation_information_input: models::graphql::CreateCreationInformationInput
     ) -> FieldResult<models::database::CreationInformationRow> {
         // Parse create creation information input
@@ -37,8 +44,7 @@ impl CreationInformationService {
             }
         }
         // Verify the given creator user uuid exists
-        match UserService::user_exists(
-            conn,
+        match user_service.user_exists(
             &new_creation_information.creator_user_uuid.to_string()
         ) {
             Ok(user_exists) => {
@@ -65,7 +71,7 @@ impl CreationInformationService {
         // Execute insertion
         match diesel::insert_into(schema::creation_information::table)
             .values(&new_creation_information_row)
-            .execute(conn) {
+            .execute(self.connection) {
                 Ok(_) => {},
                 Err(err) => {
                     return Err(graphql_error_translate(
@@ -75,10 +81,7 @@ impl CreationInformationService {
                 }
             }
         // Return error or newly inserted row via UUID look up
-        match CreationInformationService::get_creation_information_by_uuid(
-            &conn,
-            &new_creation_information_row.uuid
-        ) {
+        match self.get_creation_information_by_uuid(&new_creation_information_row.uuid) {
             Ok(res) => {
                 match res {
                     Some(found) => Ok(found),
@@ -99,12 +102,12 @@ impl CreationInformationService {
     }
 
     pub fn get_creation_information_by_uuid(
-        conn: &SqliteConnection,
+        &self,
         uuid: &String
     ) -> FieldResult<Option<models::database::CreationInformationRow>> {
         match dsl::creation_information
             .filter(dsl::uuid.eq(uuid))
-            .first::<models::database::CreationInformationRow>(conn) {
+            .first::<models::database::CreationInformationRow>(self.connection) {
                 Ok(creation_information) => Ok(Some(creation_information)),
                 Err(err) => match err {
                     diesel::result::Error::NotFound => Ok(None),
@@ -114,7 +117,7 @@ impl CreationInformationService {
     }
 
     pub fn creation_information_exists(
-        conn: &SqliteConnection,
+        &self,
         uuid: &String
     ) -> FieldResult<bool> {
         use diesel::select;
@@ -123,21 +126,19 @@ impl CreationInformationService {
         graphql_translate(
             select(
                 exists(dsl::creation_information.filter(dsl::uuid.eq(uuid)))
-            ).get_result::<bool>(conn)
+            ).get_result::<bool>(self.connection)
         )
     }
 
     pub fn update_creation_information (
-        conn: &SqliteConnection,
+        &self,
         uuid: &String,
-        update_creation_information_input: models::graphql::UpdateCreationInformationInput
+        update_creation_information_input: models::graphql::UpdateCreationInformationInput,
+        user_service: &UserService
     ) -> FieldResult<models::database::CreationInformationRow> {
         // Find the creation information row to update
         let creation_information_row: models::database::CreationInformationRow;
-        match CreationInformationService::get_creation_information_by_uuid(
-            &conn,
-            &uuid
-        ) {
+        match self.get_creation_information_by_uuid(&uuid) {
             Ok(res) => {
                 match res {
                     Some(found_creation_information_row) => {
@@ -174,10 +175,7 @@ impl CreationInformationService {
             }
         }
         // Verify the given creator user uuid exists
-        match UserService::user_exists(
-            conn,
-            &last_updated_by_uuid.to_string()
-        ) {
+        match user_service.user_exists(&last_updated_by_uuid.to_string()) {
             Ok(user_exists) => {
                 if !user_exists {
                     let err_details = format!(
@@ -219,7 +217,7 @@ impl CreationInformationService {
             .set((
                 dsl::last_updated_by_user_uuid.eq(updated_creation_information_row.last_updated_by_user_uuid.clone()),
                 dsl::last_updated_time.eq(updated_creation_information_row.last_updated_time.clone())
-            )).execute(conn) {
+            )).execute(self.connection) {
                 Ok(_) => Ok(updated_creation_information_row),
                 Err(err) => {
                     Err(graphql_error_translate(
