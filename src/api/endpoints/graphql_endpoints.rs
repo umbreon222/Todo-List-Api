@@ -6,12 +6,6 @@ use actix_web::{web, Error, HttpResponse};
 use crate::api::db::SqlitePool;
 use crate::api::graphql::{create_schema, Schema};
 use crate::api::context::GraphQLContext;
-use crate::api::services::{
-    CreationInformationService,
-    UserService,
-    TaskService,
-    ListService
-};
 
 // GraphQL endpoint configuration callback
 pub fn graphql_endpoints(config: &mut web::ServiceConfig) {

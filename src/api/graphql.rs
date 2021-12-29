@@ -19,7 +19,8 @@ use crate::api::models::graphql::{
     UpdateCreationInformationInput,
     CreateListInput,
     UpdateListInput,
-    CreateTaskInput
+    CreateTaskInput,
+    AddTaskInput
 };
 use crate::api::context::GraphQLContext;
 
@@ -110,8 +111,22 @@ impl Mutation {
         list_service.update_list(update_creation_information_input, update_list_input)
     }
 
-    #[graphql(name = "addNewTask")]
-    pub fn update_list(
+    #[graphql(name = "addTask")]
+    pub fn add_task(
+        context: &GraphQLContext,
+        creation_information_input: CreateCreationInformationInput,
+        add_task_input: AddTaskInput
+    ) -> FieldResult<ListRow> {
+        let connection = context.pool.get().unwrap();
+        let user_service = UserService::new(&connection);
+        let creation_information_service = CreationInformationService::new(&connection, &user_service);
+        let task_service = TaskService::new(&connection, &creation_information_service);
+        let list_service = ListService::new(&connection, &creation_information_service, &task_service);
+        list_service.add_task(add_task_input)
+    }
+
+    #[graphql(name = "createTask")]
+    pub fn create_task(
         context: &GraphQLContext,
         creation_information_input: CreateCreationInformationInput,
         create_task_input: CreateTaskInput
@@ -120,8 +135,7 @@ impl Mutation {
         let user_service = UserService::new(&connection);
         let creation_information_service = CreationInformationService::new(&connection, &user_service);
         let task_service = TaskService::new(&connection, &creation_information_service);
-        let list_service = ListService::new(&connection, &creation_information_service, &task_service);
-        list_service.add_new_task(creation_information_input, create_task_input)
+        task_service.create_task(creation_information_input, create_task_input)
     }
 }
 

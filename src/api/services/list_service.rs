@@ -355,14 +355,14 @@ impl<'a> ListService<'a> {
         }
     }
 
-    pub fn add_new_task(
+    //create_task_input: models::graphql::CreateTaskInput
+    pub fn add_task(
         &self,
-        create_creation_information_input: models::graphql::CreateCreationInformationInput,
-        create_task_input: models::graphql::CreateTaskInput
-    ) -> FieldResult<models::database::TaskRow> {
+        add_task_input: models::graphql::AddTaskInput,
+    ) -> FieldResult<models::database::ListRow> {
         // Find the list row to update
         let list_row: models::database::ListRow;
-        match self.get_list_by_uuid(&create_task_input.parent_list_uuid) {
+        match self.get_list_by_uuid(&add_task_input.parent_list_uuid) {
             Ok(result) => {
                 match result {
                     Some(found_list_row) => {
@@ -372,7 +372,7 @@ impl<'a> ListService<'a> {
                         return Err(
                             graphql_error_translate(
                                 constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
-                                format!("List '{}' not found", create_task_input.parent_list_uuid.to_string())
+                                format!("List '{}' not found", add_task_input.parent_list_uuid.to_string())
                             )
                         );
                     }
@@ -398,23 +398,33 @@ impl<'a> ListService<'a> {
                 ));
             }
         }
-        // Create task row from task input
-        // Grab the uuid of the user who is updating the task before the input object is swallowed
-        let last_updated_by_user_uuid = create_creation_information_input.creator_user_uuid.clone();
-        let created_task_row: models::database::TaskRow;
-        match self.task_service.create_task(create_creation_information_input, create_task_input) {
-            Ok(task_row) => {
-                created_task_row = task_row;
+        // Fetch task row
+        let task_row: models::database::TaskRow;
+        match self.task_service.get_task_by_uuid(&add_task_input.task_uuid) {
+            Ok(result) => {
+                match result {
+                    Some(found_task_row) => {
+                        task_row = found_task_row;
+                    },
+                    None => {
+                        return Err(
+                            graphql_error_translate(
+                                constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
+                                format!("Task '{}' not found", add_task_input.task_uuid.to_string())
+                            )
+                        );
+                    }
+                }
             },
             Err(err) => {
                 return Err(graphql_error_translate(
-                    constants::TASK_NOT_CREATED_ERROR_MESSAGE.to_string(),
+                    constants::TASK_NOT_ADDED_ERROR_MESSAGE.to_string(),
                     err.message().to_string()
                 ));
             }
         }
         // Create task from task row
-        match models::Task::from_task_row(created_task_row.clone()) {
+        match models::Task::from_task_row(task_row.clone()) {
             Ok(task) => {
                 let mut updated_task_uuids = updated_list.task_uuids.clone().unwrap_or_default();
                 updated_task_uuids.push(task.uuid.clone());
@@ -455,7 +465,7 @@ impl<'a> ListService<'a> {
         
         // Create update creation information input from new creation information input
         let update_creation_information_input = models::graphql::UpdateCreationInformationInput {
-            last_updated_by_user_uuid,
+            last_updated_by_user_uuid: add_task_input.last_updated_by_user_uuid,
         };
         // Update creation information and return updated list row on success
         match self.creation_information_service.update_creation_information(
@@ -463,7 +473,7 @@ impl<'a> ListService<'a> {
             update_creation_information_input
         ) {
             Ok(_res) => {
-                return Ok(created_task_row);
+                return Ok(updated_list_row);
             },
             Err(err) => {
                 return Err(graphql_error_translate(
@@ -474,8 +484,8 @@ impl<'a> ListService<'a> {
         }
     }
 
+    /*
     pub fn validate_list(&self,
-        user_service: &UserService,
         task_service: &TaskService,
         list: &models::List
     ) -> Result<(), String> {
@@ -590,5 +600,5 @@ impl<'a> ListService<'a> {
             },
             None => {}
         }
-    }
+    }*/
 }
